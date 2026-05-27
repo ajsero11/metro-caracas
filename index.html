@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Metro Caracas — Gestión de Locales</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen" class="screen active">
+  <div class="login-box">
+    <div class="login-logo">🚇</div>
+    <h1>Metro Caracas</h1>
+    <p>Gestión de Locales Comerciales</p>
+    <input type="email" id="login-email" placeholder="Tu correo Gmail" autocomplete="email">
+    <button id="btn-login" onclick="login()">Entrar</button>
+    <div id="login-error" class="error-msg"></div>
+  </div>
+</div>
+
+<!-- APP PRINCIPAL -->
+<div id="app-screen" class="screen">
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-left">
+      <span class="logo">🚇</span>
+      <span class="titulo">Metro Caracas</span>
+    </div>
+    <div class="header-right">
+      <span id="user-nombre"></span>
+      <span id="user-rol-badge" class="badge"></span>
+      <button class="btn-salir" onclick="cerrarSesion()">Salir</button>
+    </div>
+  </header>
+
+  <!-- FILTROS -->
+  <div class="filtros">
+    <input type="text" id="filtro-buscar" placeholder="🔍 Buscar arrendatario o local..." oninput="filtrar()">
+    <select id="filtro-linea" onchange="filtrar()">
+      <option value="">Todas las líneas</option>
+      <option value="1">Línea 1</option>
+      <option value="2">Línea 2</option>
+      <option value="3">Línea 3</option>
+      <option value="4">Línea 4</option>
+    </select>
+    <select id="filtro-estacion" onchange="filtrar()">
+      <option value="">Todas las estaciones</option>
+    </select>
+    <select id="filtro-status" onchange="filtrar()">
+      <option value="">Todos los status</option>
+      <option value="ARRENDADO">Arrendado</option>
+      <option value="DISPONIBLE">Disponible</option>
+      <option value="EN RECUPERACIÓN">En Recuperación</option>
+      <option value="ASIGNADO">Asignado</option>
+      <option value="COMODATO">Comodato</option>
+      <option value="EN ANÁLISIS">En Análisis</option>
+      <option value="DEPÓSITO">Depósito</option>
+    </select>
+    <button id="btn-nuevo" class="btn-primary admin-only" onclick="abrirFormulario(null)" style="display:none">+ Nuevo Local</button>
+  </div>
+
+  <!-- CONTADOR -->
+  <div class="contador">
+    <span id="total-registros">Cargando...</span>
+  </div>
+
+  <!-- TABLA / CARDS -->
+  <div id="lista-locales" class="lista"></div>
+
+  <!-- LOADING -->
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <p>Cargando datos...</p>
+  </div>
+
+</div>
+
+<!-- MODAL DETALLE -->
+<div id="modal-detalle" class="modal-overlay" onclick="cerrarModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="cerrarModalDetalle()">✕</button>
+
+    <div class="modal-header">
+      <div>
+        <h2 id="det-local"></h2>
+        <p id="det-estacion-linea"></p>
+      </div>
+      <span id="det-status-badge" class="badge"></span>
+    </div>
+
+    <!-- GALERÍA -->
+    <div id="galeria-container" class="galeria-container">
+      <div id="galeria" class="galeria"></div>
+      <div id="galeria-empty" class="galeria-empty" style="display:none">Sin fotos aún</div>
+    </div>
+
+    <!-- BOTÓN SUBIR FOTO -->
+    <div class="foto-upload-area">
+      <input type="file" id="input-foto" accept="image/*" capture="environment" style="display:none" onchange="subirFoto()">
+      <button class="btn-foto" onclick="document.getElementById('input-foto').click()">📷 Agregar foto</button>
+      <div id="upload-progress" style="display:none" class="upload-progress">Subiendo foto...</div>
+    </div>
+
+    <!-- DATOS -->
+    <div class="modal-datos">
+      <div class="dato-grid">
+        <div class="dato"><span class="dato-label">Arrendatario</span><span id="det-arrendatario"></span></div>
+        <div class="dato"><span class="dato-label">Contrato</span><span id="det-contrato"></span></div>
+        <div class="dato"><span class="dato-label">Inicio</span><span id="det-inicio"></span></div>
+        <div class="dato"><span class="dato-label">Vencimiento</span><span id="det-fin"></span></div>
+        <div class="dato"><span class="dato-label">Área m²</span><span id="det-area"></span></div>
+        <div class="dato"><span class="dato-label">$/m²</span><span id="det-mts"></span></div>
+        <div class="dato"><span class="dato-label">Monto mensual</span><span id="det-monto"></span></div>
+        <div class="dato dato-full"><span class="dato-label">Observaciones</span><span id="det-obs"></span></div>
+      </div>
+    </div>
+
+    <!-- ACCIONES ADMIN -->
+    <div class="modal-acciones admin-only" id="modal-acciones-admin" style="display:none">
+      <button class="btn-primary" onclick="editarDesdeModal()">✏️ Editar</button>
+      <button class="btn-danger" onclick="eliminarDesdeModal()">🗑️ Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FORMULARIO -->
+<div id="modal-form" class="modal-overlay" onclick="cerrarModalForm(event)">
+  <div class="modal-box modal-form-box">
+    <button class="modal-close" onclick="cerrarModalForm()">✕</button>
+    <h2 id="form-titulo">Nuevo Local</h2>
+
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Línea</label>
+        <select id="f-linea">
+          <option value="1">Línea 1</option>
+          <option value="2">Línea 2</option>
+          <option value="3">Línea 3</option>
+          <option value="4">Línea 4</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Estación</label>
+        <input type="text" id="f-estacion" placeholder="Nombre de la estación">
+      </div>
+      <div class="form-group">
+        <label>Local</label>
+        <input type="text" id="f-local" placeholder="Código del local">
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="f-status">
+          <option>ARRENDADO</option>
+          <option>DISPONIBLE</option>
+          <option>EN RECUPERACIÓN</option>
+          <option>ASIGNADO</option>
+          <option>COMODATO</option>
+          <option>EN ANÁLISIS</option>
+          <option>DEPÓSITO</option>
+        </select>
+      </div>
+      <div class="form-group form-full">
+        <label>Arrendatario</label>
+        <input type="text" id="f-arrendatario" placeholder="Nombre del arrendatario">
+      </div>
+      <div class="form-group">
+        <label>Contrato</label>
+        <input type="text" id="f-contrato">
+      </div>
+      <div class="form-group">
+        <label>Inicio</label>
+        <input type="date" id="f-inicio">
+      </div>
+      <div class="form-group">
+        <label>Vencimiento</label>
+        <input type="date" id="f-fin">
+      </div>
+      <div class="form-group">
+        <label>Área m²</label>
+        <input type="number" id="f-area" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>$/m²</label>
+        <input type="number" id="f-mts" step="0.01">
+      </div>
+      <div class="form-group">
+        <label>Monto mensual $</label>
+        <input type="number" id="f-monto" step="0.01">
+      </div>
+      <div class="form-group form-full">
+        <label>Observaciones</label>
+        <textarea id="f-obs" rows="2"></textarea>
+      </div>
+    </div>
+
+    <div class="form-acciones">
+      <button class="btn-secondary" onclick="cerrarModalForm()">Cancelar</button>
+      <button class="btn-primary" onclick="guardarFormulario()">Guardar</button>
+    </div>
+    <div id="form-error" class="error-msg"></div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
