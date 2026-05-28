@@ -14,7 +14,8 @@
     <div class="login-logo">🚇</div>
     <h1>Metro Caracas</h1>
     <p>Gestión de Locales Comerciales</p>
-    <input type="email" id="login-email" placeholder="Tu correo Gmail" autocomplete="email">
+    <input type="email" id="login-email" placeholder="Correo electrónico" autocomplete="email">
+    <input type="password" id="login-password" placeholder="Contraseña" autocomplete="current-password">
     <button id="btn-login" onclick="login()">Entrar</button>
     <div id="login-error" class="error-msg"></div>
   </div>
@@ -32,6 +33,7 @@
     <div class="header-right">
       <span id="user-nombre"></span>
       <span id="user-rol-badge" class="badge"></span>
+      <button class="btn-salir admin-only" id="btn-usuarios" onclick="abrirGestionUsuarios()" style="display:none">👥 Usuarios</button>
       <button class="btn-salir" onclick="cerrarSesion()">Salir</button>
     </div>
   </header>
@@ -59,7 +61,7 @@
       <option value="EN ANÁLISIS">En Análisis</option>
       <option value="DEPÓSITO">Depósito</option>
     </select>
-    <button id="btn-nuevo" class="btn-primary admin-only" onclick="abrirFormulario(null)" style="display:none">+ Nuevo Local</button>
+    <button id="btn-nuevo" class="btn-primary" onclick="abrirFormulario(null)" style="display:none">+ Nuevo Local</button>
   </div>
 
   <!-- CONTADOR -->
@@ -67,7 +69,7 @@
     <span id="total-registros">Cargando...</span>
   </div>
 
-  <!-- TABLA / CARDS -->
+  <!-- LISTA -->
   <div id="lista-locales" class="lista"></div>
 
   <!-- LOADING -->
@@ -119,14 +121,14 @@
     </div>
 
     <!-- ACCIONES ADMIN -->
-    <div class="modal-acciones admin-only" id="modal-acciones-admin" style="display:none">
+    <div class="modal-acciones" id="modal-acciones-admin" style="display:none">
       <button class="btn-primary" onclick="editarDesdeModal()">✏️ Editar</button>
       <button class="btn-danger" onclick="eliminarDesdeModal()">🗑️ Eliminar</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL FORMULARIO -->
+<!-- MODAL FORMULARIO LOCAL -->
 <div id="modal-form" class="modal-overlay" onclick="cerrarModalForm(event)">
   <div class="modal-box modal-form-box">
     <button class="modal-close" onclick="cerrarModalForm()">✕</button>
@@ -201,6 +203,49 @@
       <button class="btn-primary" onclick="guardarFormulario()">Guardar</button>
     </div>
     <div id="form-error" class="error-msg"></div>
+  </div>
+</div>
+
+<!-- MODAL GESTIÓN DE USUARIOS (solo admin) -->
+<div id="modal-usuarios" class="modal-overlay" onclick="cerrarModalUsuarios(event)">
+  <div class="modal-box modal-form-box">
+    <button class="modal-close" onclick="cerrarModalUsuarios()">✕</button>
+    <h2>👥 Gestión de Usuarios</h2>
+
+    <div id="usuarios-lista" style="margin: 16px 0;"></div>
+
+    <button class="btn-primary" onclick="mostrarFormUsuario(null)" style="margin-bottom:12px">+ Agregar Usuario</button>
+
+    <!-- Formulario inline -->
+    <div id="form-usuario" style="display:none; background:var(--bg); border-radius:12px; padding:16px; margin-top:8px;">
+      <h3 id="form-usuario-titulo" style="font-size:15px; margin-bottom:12px;">Nuevo Usuario</h3>
+      <div class="form-grid">
+        <div class="form-group form-full">
+          <label>Email</label>
+          <input type="email" id="u-email" placeholder="correo@gmail.com">
+        </div>
+        <div class="form-group form-full">
+          <label>Nombre</label>
+          <input type="text" id="u-nombre" placeholder="Nombre completo">
+        </div>
+        <div class="form-group">
+          <label>Rol</label>
+          <select id="u-rol">
+            <option value="usuario">usuario</option>
+            <option value="admin">admin</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input type="text" id="u-password" placeholder="Contraseña">
+        </div>
+      </div>
+      <div class="form-acciones">
+        <button class="btn-secondary" onclick="cancelarFormUsuario()">Cancelar</button>
+        <button class="btn-primary" onclick="guardarUsuario()">Guardar</button>
+      </div>
+      <div id="usuario-error" class="error-msg"></div>
+    </div>
   </div>
 </div>
 

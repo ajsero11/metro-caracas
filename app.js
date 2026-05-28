@@ -3,24 +3,25 @@ const API = 'https://script.google.com/macros/s/AKfycbw4-7lAvwQfXgPkgT-A6JkphmRG
 let usuarioActual = null;
 let todosLosLocales = [];
 let localActual = null;
+let usuarioEditando = null; // email del usuario que se está editando
 
 // ============================================================
 // LOGIN
 // ============================================================
 function login() {
-  const email = document.getElementById('login-email').value.trim().toLowerCase();
-  const errEl = document.getElementById('login-error');
+  const email    = document.getElementById('login-email').value.trim().toLowerCase();
+  const password = document.getElementById('login-password').value.trim();
+  const errEl    = document.getElementById('login-error');
   errEl.textContent = '';
 
-  if (!email || !email.includes('@')) {
-    errEl.textContent = 'Ingresa un correo válido';
-    return;
-  }
+  if (!email || !email.includes('@')) { errEl.textContent = 'Ingresa un correo válido'; return; }
+  if (!password) { errEl.textContent = 'Ingresa tu contraseña'; return; }
 
-  document.getElementById('btn-login').textContent = 'Verificando...';
-  document.getElementById('btn-login').disabled = true;
+  const btn = document.getElementById('btn-login');
+  btn.textContent = 'Verificando...';
+  btn.disabled = true;
 
-  apiGet({ action: 'getUsuario', email })
+  apiGet({ action: 'login', email, password })
     .then(res => {
       if (res.error) throw new Error(res.error);
       usuarioActual = res;
@@ -28,9 +29,9 @@ function login() {
       mostrarApp();
     })
     .catch(err => {
-      errEl.textContent = 'Error al conectar. Verifica tu conexión.';
-      document.getElementById('btn-login').textContent = 'Entrar';
-      document.getElementById('btn-login').disabled = false;
+      errEl.textContent = err.message || 'Error al conectar';
+      btn.textContent = 'Entrar';
+      btn.disabled = false;
     });
 }
 
@@ -38,6 +39,8 @@ function cerrarSesion() {
   localStorage.removeItem('usuario');
   usuarioActual = null;
   todosLosLocales = [];
+  document.getElementById('login-email').value = '';
+  document.getElementById('login-password').value = '';
   mostrarLogin();
 }
 
@@ -57,7 +60,7 @@ function mostrarApp() {
 
   if (usuarioActual.rol === 'admin') {
     document.getElementById('btn-nuevo').style.display = 'inline-block';
-    document.getElementById('modal-acciones-admin').style.display = 'flex';
+    document.getElementById('btn-usuarios').style.display = 'inline-block';
   }
 
   cargarLocales();
@@ -88,6 +91,8 @@ function llenarFiltroEstaciones() {
     if (!res.locales) return;
     const estaciones = [...new Set(res.locales.map(l => l.estacion))].sort();
     const sel = document.getElementById('filtro-estacion');
+    // Limpiar opciones anteriores (menos la primera)
+    while (sel.options.length > 1) sel.remove(1);
     estaciones.forEach(e => {
       const opt = document.createElement('option');
       opt.value = e;
@@ -200,9 +205,8 @@ function abrirDetalle(nro) {
   renderGaleria(l.fotos || []);
   document.getElementById('input-foto').dataset.nro = nro;
 
-  if (usuarioActual.rol === 'admin') {
-    document.getElementById('modal-acciones-admin').style.display = 'flex';
-  }
+  const accionesAdmin = document.getElementById('modal-acciones-admin');
+  accionesAdmin.style.display = usuarioActual.rol === 'admin' ? 'flex' : 'none';
 
   document.getElementById('modal-detalle').classList.add('active');
 }
@@ -257,12 +261,10 @@ function subirFoto() {
       input.value = '';
       if (res.error) { alert('Error: ' + res.error); return; }
 
-      // Actualizar la galería localmente
       if (!localActual.fotos) localActual.fotos = [];
       localActual.fotos.push(res.url);
       renderGaleria(localActual.fotos);
 
-      // Actualizar en la lista principal
       const idx = todosLosLocales.findIndex(l => l.nro === localActual.nro);
       if (idx !== -1) todosLosLocales[idx].fotos = localActual.fotos;
     }).catch(err => {
@@ -274,7 +276,7 @@ function subirFoto() {
 }
 
 // ============================================================
-// FORMULARIO (ADMIN)
+// FORMULARIO LOCAL (ADMIN)
 // ============================================================
 function abrirFormulario(local) {
   document.getElementById('form-titulo').textContent = local ? 'Editar Local' : 'Nuevo Local';
@@ -357,6 +359,124 @@ function eliminarDesdeModal() {
 }
 
 // ============================================================
+// GESTIÓN DE USUARIOS (solo admin)
+// ============================================================
+function abrirGestionUsuarios() {
+  document.getElementById('form-usuario').style.display = 'none';
+  document.getElementById('usuario-error').textContent = '';
+  cargarListaUsuarios();
+  document.getElementById('modal-usuarios').classList.add('active');
+}
+
+function cerrarModalUsuarios(e) {
+  if (!e || e.target === e.currentTarget) {
+    document.getElementById('modal-usuarios').classList.remove('active');
+  }
+}
+
+function cargarListaUsuarios() {
+  const lista = document.getElementById('usuarios-lista');
+  lista.innerHTML = '<p style="color:var(--text-muted);font-size:13px">Cargando...</p>';
+
+  apiGet({ action: 'getUsuarios', email: usuarioActual.email })
+    .then(res => {
+      if (res.error) { lista.innerHTML = '<p style="color:red">' + res.error + '</p>'; return; }
+      if (!res.usuarios || res.usuarios.length === 0) {
+        lista.innerHTML = '<p style="color:var(--text-muted);font-size:13px">No hay usuarios</p>';
+        return;
+      }
+
+      lista.innerHTML = res.usuarios.map(u => `
+        <div class="usuario-row">
+          <div class="usuario-info">
+            <span class="usuario-nombre">${u.nombre || '—'}</span>
+            <span class="usuario-email">${u.email}</span>
+            <span class="usuario-pass">🔑 ${u.password}</span>
+          </div>
+          <div class="usuario-badges">
+            <span class="badge ${u.rol === 'admin' ? 'badge-ARRENDADO' : 'badge-DISPONIBLE'}">${u.rol}</span>
+          </div>
+          <div class="usuario-acciones">
+            <button class="btn-icon" onclick="mostrarFormUsuario('${u.email}', '${(u.nombre||'').replace(/'/g,"\\'")}', '${u.rol}', '${(u.password||'').replace(/'/g,"\\'")}')">✏️</button>
+            <button class="btn-icon btn-icon-danger" onclick="eliminarUsuario('${u.email}')">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    });
+}
+
+function mostrarFormUsuario(emailEditar, nombre, rol, password) {
+  usuarioEditando = emailEditar || null;
+
+  document.getElementById('form-usuario-titulo').textContent = emailEditar ? 'Editar Usuario' : 'Nuevo Usuario';
+  document.getElementById('u-email').value    = emailEditar || '';
+  document.getElementById('u-email').disabled = !!emailEditar; // no se puede cambiar el email
+  document.getElementById('u-nombre').value   = nombre   || '';
+  document.getElementById('u-rol').value      = rol      || 'usuario';
+  document.getElementById('u-password').value = password || '';
+  document.getElementById('usuario-error').textContent = '';
+  document.getElementById('form-usuario').style.display = 'block';
+  document.getElementById('form-usuario').scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelarFormUsuario() {
+  document.getElementById('form-usuario').style.display = 'none';
+  usuarioEditando = null;
+}
+
+function guardarUsuario() {
+  const email    = document.getElementById('u-email').value.trim().toLowerCase();
+  const nombre   = document.getElementById('u-nombre').value.trim();
+  const rol      = document.getElementById('u-rol').value;
+  const password = document.getElementById('u-password').value.trim();
+  const errEl    = document.getElementById('usuario-error');
+
+  if (!email || !email.includes('@')) { errEl.textContent = 'Email inválido'; return; }
+  if (!password) { errEl.textContent = 'La contraseña es obligatoria'; return; }
+
+  errEl.textContent = 'Guardando...';
+
+  if (usuarioEditando) {
+    // Editar
+    apiPost({
+      action: 'updateUsuario',
+      targetEmail: usuarioEditando,
+      data: { nombre, rol, password },
+      email: usuarioActual.email
+    }).then(res => {
+      if (res.error) { errEl.textContent = res.error; return; }
+      cancelarFormUsuario();
+      cargarListaUsuarios();
+    });
+  } else {
+    // Nuevo
+    apiPost({
+      action: 'addUsuario',
+      data: { email, nombre, rol, password },
+      email: usuarioActual.email
+    }).then(res => {
+      if (res.error) { errEl.textContent = res.error; return; }
+      cancelarFormUsuario();
+      cargarListaUsuarios();
+    });
+  }
+}
+
+function eliminarUsuario(emailTarget) {
+  if (emailTarget === usuarioActual.email) {
+    alert('No puedes eliminar tu propio usuario');
+    return;
+  }
+  if (!confirm('¿Eliminar al usuario ' + emailTarget + '?')) return;
+
+  apiPost({ action: 'deleteUsuario', targetEmail: emailTarget, email: usuarioActual.email })
+    .then(res => {
+      if (res.error) { alert('Error: ' + res.error); return; }
+      cargarListaUsuarios();
+    });
+}
+
+// ============================================================
 // API HELPERS
 // ============================================================
 function apiGet(params) {
@@ -377,7 +497,6 @@ function apiPost(body) {
 function formatFecha(val) {
   if (!val) return '—';
   if (typeof val === 'number') {
-    // Serial de Excel → fecha
     const d = new Date((val - 25569) * 86400 * 1000);
     return d.toLocaleDateString('es-VE');
   }
@@ -412,8 +531,10 @@ window.addEventListener('DOMContentLoaded', () => {
     mostrarLogin();
   }
 
-  // Enter en login
   document.getElementById('login-email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('login-password').focus();
+  });
+  document.getElementById('login-password').addEventListener('keydown', e => {
     if (e.key === 'Enter') login();
   });
 });
