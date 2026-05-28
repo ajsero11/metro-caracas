@@ -121,6 +121,8 @@
         <div class="dato"><span class="dato-label">Área m²</span><span id="det-area"></span></div>
         <div class="dato"><span class="dato-label">$/m²</span><span id="det-mts"></span></div>
         <div class="dato"><span class="dato-label">Monto mensual</span><span id="det-monto"></span></div>
+        <div class="dato"><span class="dato-label">Contingencia</span><span id="det-contingencia">—</span></div>
+        <div class="dato"><span class="dato-label">Precio final</span><span id="det-precio-final" style="font-weight:700;color:var(--primary);">—</span></div>
         <div class="dato dato-full">
           <span class="dato-label">Observaciones</span>
           <textarea id="det-obs" rows="3" style="width:100%; padding:8px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; resize:vertical; outline:none;" placeholder="Sin observaciones"></textarea>
@@ -128,6 +130,27 @@
           <div id="obs-msg" style="font-size:12px; min-height:16px; margin-top:2px;"></div>
         </div>
       </div>
+    </div>
+
+    <!-- PANEL PRECIOS (solo admin) -->
+    <div id="panel-precios" style="display:none; background:var(--bg); border-radius:12px; padding:16px; margin-top:12px;">
+      <p style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px; font-weight:600;">Editar Precios</p>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Monto mensual $</label>
+          <input type="number" id="edit-monto" step="0.01" min="0" oninput="calcularPrecioFinal()">
+        </div>
+        <div class="form-group">
+          <label>Contingencia %</label>
+          <input type="number" id="edit-contingencia" step="0.01" min="0" max="100" placeholder="0" oninput="calcularPrecioFinal()">
+        </div>
+      </div>
+      <div style="background:white; border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-size:12px; color:var(--text-muted); text-transform:uppercase;">Precio final</span>
+        <span id="edit-precio-final-calc" style="font-size:20px; font-weight:700; color:var(--primary);">—</span>
+      </div>
+      <button class="btn-guardar-obs" id="btn-guardar-precios" onclick="guardarPrecios()">💾 Guardar precios</button>
+      <div id="precios-msg" style="font-size:12px; min-height:16px; margin-top:4px;"></div>
     </div>
 
     <!-- ACCIONES ADMIN -->

@@ -14,7 +14,8 @@ var DRIVE_FOLDER_ID     = '1exfPULplLmLfERPLKCSoUC0C_WmQg7Qi';
 var COLS = {
   NRO: 1, LINEA: 2, ESTACION: 3, LOCAL: 4, ARRENDATARIO: 5,
   STATUS: 6, CONTRATO: 7, INICIO: 8, FIN: 9,
-  AREA: 10, MTS_USD: 11, MONTO: 12, OBSERVACIONES: 13, FOTOS: 14
+  AREA: 10, MTS_USD: 11, MONTO: 12, OBSERVACIONES: 13, FOTOS: 14,
+  CONTINGENCIA: 15, PRECIO_FINAL: 16
 };
 
 var UCOLS = { EMAIL: 1, NOMBRE: 2, ROL: 3, PASSWORD: 4 };
@@ -191,7 +192,8 @@ function updateLocal(nro, data, email) {
   var campos = { linea: COLS.LINEA, estacion: COLS.ESTACION, local: COLS.LOCAL,
     arrendatario: COLS.ARRENDATARIO, status: COLS.STATUS, contrato: COLS.CONTRATO,
     inicio: COLS.INICIO, fin: COLS.FIN, area: COLS.AREA,
-    mts_usd: COLS.MTS_USD, monto: COLS.MONTO, observaciones: COLS.OBSERVACIONES };
+    mts_usd: COLS.MTS_USD, monto: COLS.MONTO, observaciones: COLS.OBSERVACIONES,
+    contingencia: COLS.CONTINGENCIA, precio_final: COLS.PRECIO_FINAL };
   for (var campo in campos) {
     if (data.hasOwnProperty(campo)) sheet.getRange(rowNum, campos[campo]).setValue(data[campo]);
   }
@@ -259,7 +261,8 @@ function rowToObject(row) {
     nro: row[0], linea: row[1], estacion: row[2], local: row[3],
     arrendatario: row[4], status: row[5], contrato: row[6],
     inicio: row[7], fin: row[8], area: row[9], mts_usd: row[10],
-    monto: row[11], observaciones: row[12], fotos: fotos
+    monto: row[11], observaciones: row[12], fotos: fotos,
+    contingencia: row[14] || 0, precio_final: row[15] || ''
   };
 }
 

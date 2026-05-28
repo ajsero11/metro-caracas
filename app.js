@@ -195,7 +195,24 @@ function abrirDetalle(nro) {
   document.getElementById('det-fin').textContent = formatFecha(l.fin);
   document.getElementById('det-area').textContent = l.area ? l.area + ' m²' : '—';
   document.getElementById('det-mts').textContent = l.mts_usd ? '$ ' + l.mts_usd : '—';
-  document.getElementById('det-monto').textContent = l.monto ? '$ ' + Number(l.monto).toLocaleString('es-VE', {minimumFractionDigits:2}) : '—';
+  const monto       = l.monto       ? Number(l.monto)       : 0;
+  const contingencia = l.contingencia ? Number(l.contingencia) : 0;
+  const precioFinal  = contingencia > 0 ? monto - (monto * contingencia / 100) : monto;
+
+  document.getElementById('det-monto').textContent       = monto       ? '$ ' + monto.toLocaleString('es-VE', {minimumFractionDigits:2}) : '—';
+  document.getElementById('det-contingencia').textContent = contingencia ? contingencia + '%' : '—';
+  document.getElementById('det-precio-final').textContent = monto       ? '$ ' + precioFinal.toLocaleString('es-VE', {minimumFractionDigits:2}) : '—';
+
+  // Panel admin precios
+  const panelPrecios = document.getElementById('panel-precios');
+  if (usuarioActual && usuarioActual.rol === 'admin') {
+    panelPrecios.style.display = 'block';
+    document.getElementById('edit-monto').value        = monto || '';
+    document.getElementById('edit-contingencia').value = contingencia || '';
+    calcularPrecioFinal();
+  } else {
+    panelPrecios.style.display = 'none';
+  }
   document.getElementById('det-obs').value = l.observaciones || '';
   document.getElementById('obs-msg').textContent = '';
   document.getElementById('obs-msg').style.color = '';
@@ -347,6 +364,66 @@ function guardarObservaciones() {
   }).catch(err => {
     btn.disabled = false;
     btn.textContent = '💾 Guardar observaciones';
+    msg.style.color = 'var(--danger)';
+    msg.textContent = err.message;
+  });
+}
+
+// ============================================================
+// EDITAR PRECIOS DESDE MODAL DETALLE (solo admin)
+// ============================================================
+function calcularPrecioFinal() {
+  const monto        = parseFloat(document.getElementById('edit-monto').value) || 0;
+  const contingencia = parseFloat(document.getElementById('edit-contingencia').value) || 0;
+  const final        = monto - (monto * contingencia / 100);
+  document.getElementById('edit-precio-final-calc').textContent =
+    monto ? '$ ' + final.toLocaleString('es-VE', {minimumFractionDigits:2}) : '—';
+}
+
+function guardarPrecios() {
+  if (!localActual) return;
+  const monto        = parseFloat(document.getElementById('edit-monto').value) || 0;
+  const contingencia = parseFloat(document.getElementById('edit-contingencia').value) || 0;
+  const precioFinal  = monto - (monto * contingencia / 100);
+  const msg          = document.getElementById('precios-msg');
+  const btn          = document.getElementById('btn-guardar-precios');
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  msg.textContent = '';
+
+  apiPost({
+    action: 'updateLocal',
+    nro: localActual.nro,
+    data: { monto, contingencia, precio_final: precioFinal },
+    email: usuarioActual.email
+  }).then(res => {
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar precios';
+    if (res.error) { msg.style.color = 'var(--danger)'; msg.textContent = res.error; return; }
+
+    localActual.monto        = monto;
+    localActual.contingencia = contingencia;
+    localActual.precio_final = precioFinal;
+
+    const idx = todosLosLocales.findIndex(l => l.nro === localActual.nro);
+    if (idx !== -1) {
+      todosLosLocales[idx].monto        = monto;
+      todosLosLocales[idx].contingencia = contingencia;
+      todosLosLocales[idx].precio_final = precioFinal;
+    }
+
+    // Actualizar los displays de lectura
+    document.getElementById('det-monto').textContent        = '$ ' + monto.toLocaleString('es-VE', {minimumFractionDigits:2});
+    document.getElementById('det-contingencia').textContent = contingencia ? contingencia + '%' : '—';
+    document.getElementById('det-precio-final').textContent = '$ ' + precioFinal.toLocaleString('es-VE', {minimumFractionDigits:2});
+
+    msg.style.color = 'var(--success)';
+    msg.textContent = '✓ Guardado';
+    setTimeout(() => { msg.textContent = ''; }, 2000);
+  }).catch(err => {
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar precios';
     msg.style.color = 'var(--danger)';
     msg.textContent = err.message;
   });
