@@ -55,13 +55,13 @@ function mostrarApp() {
 
   document.getElementById('user-nombre').textContent = usuarioActual.nombre || usuarioActual.email;
   const badge = document.getElementById('user-rol-badge');
-  badge.textContent = usuarioActual.rol === 'admin' ? 'Admin' : 'Usuario';
-  badge.className = 'badge ' + (usuarioActual.rol === 'admin' ? 'badge-ARRENDADO' : 'badge-DISPONIBLE');
+  const esAdmin = usuarioActual.rol === 'admin';
+  badge.textContent = esAdmin ? 'Admin' : 'Usuario';
+  badge.className = 'badge ' + (esAdmin ? 'badge-ARRENDADO' : 'badge-DISPONIBLE');
 
-  if (usuarioActual.rol === 'admin') {
-    document.getElementById('btn-nuevo').style.display = 'inline-block';
-    document.getElementById('btn-usuarios').style.display = 'inline-block';
-  }
+  // Mostrar u ocultar elementos exclusivos de admin
+  document.getElementById('btn-nuevo').style.display    = esAdmin ? 'inline-block' : 'none';
+  document.getElementById('btn-usuarios').style.display = esAdmin ? 'inline-block' : 'none';
 
   cargarLocales();
   llenarFiltroEstaciones();
@@ -222,9 +222,35 @@ function renderGaleria(fotos) {
   }
 
   empty.style.display = 'none';
-  galeria.innerHTML = fotos.map(url =>
-    `<img src="${driveThumb(url)}" onclick="window.open('${url}','_blank')" title="Ver foto completa">`
-  ).join('');
+  const esAdmin = usuarioActual && usuarioActual.rol === 'admin';
+
+  galeria.innerHTML = fotos.map((url, idx) => `
+    <div class="foto-item">
+      <img src="${driveThumb(url)}" onclick="window.open('${url}','_blank')" title="Ver foto completa">
+      ${esAdmin ? `<button class="btn-eliminar-foto" onclick="eliminarFoto(${idx})" title="Eliminar foto">🗑️</button>` : ''}
+    </div>
+  `).join('');
+}
+
+function eliminarFoto(idx) {
+  if (!localActual) return;
+  if (!confirm('¿Eliminar esta foto? No se puede deshacer.')) return;
+
+  const url = localActual.fotos[idx];
+
+  apiPost({
+    action: 'deleteFoto',
+    nro: localActual.nro,
+    url: url,
+    email: usuarioActual.email
+  }).then(res => {
+    if (res.error) { alert('Error: ' + res.error); return; }
+    localActual.fotos = res.fotos;
+    renderGaleria(localActual.fotos);
+    // Actualizar lista principal
+    const i = todosLosLocales.findIndex(l => l.nro === localActual.nro);
+    if (i !== -1) todosLosLocales[i].fotos = localActual.fotos;
+  }).catch(err => alert('Error: ' + err.message));
 }
 
 function cerrarModalDetalle() {

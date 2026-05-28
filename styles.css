@@ -182,11 +182,21 @@ header {
 /* GALERÍA */
 .galeria-container { margin-bottom: 12px; }
 .galeria { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px; }
-.galeria img {
-  height: 160px; min-width: 200px; object-fit: cover;
-  border-radius: 8px; cursor: pointer; flex-shrink: 0;
-}
 .galeria-empty { color: var(--text-muted); font-size: 13px; padding: 16px 0; }
+
+.foto-item { position: relative; flex-shrink: 0; }
+.foto-item img {
+  height: 160px; min-width: 200px; object-fit: cover;
+  border-radius: 8px; cursor: pointer; display: block;
+}
+.btn-eliminar-foto {
+  position: absolute; top: 6px; right: 6px;
+  background: rgba(217,48,37,0.85); border: none; border-radius: 50%;
+  width: 28px; height: 28px; font-size: 13px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: white; line-height: 1;
+}
+.btn-eliminar-foto:hover { background: var(--danger); }
 
 /* FOTO UPLOAD */
 .foto-upload-area { margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
