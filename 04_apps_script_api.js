@@ -226,26 +226,14 @@ function uploadFoto(nro, base64, fileName, email) {
 
 function deleteFoto(nro, url, email) {
   verificarAdmin(email);
-  var sheet  = getSheet(SHEET_NAME_LOCALES);
-  var rowNum = buscarNumFila(sheet, Number(nro));
+  var sheet   = getSheet(SHEET_NAME_LOCALES);
+  var rowNum  = buscarNumFila(sheet, Number(nro));
   if (!rowNum) return { error: 'Registro no encontrado' };
   var celda   = sheet.getRange(rowNum, COLS.FOTOS);
-  var actual  = String(celda.getValue()).trim();
   var urlTrim = String(url).trim();
-  var fotos   = actual.split(',')
+  var fotos   = String(celda.getValue()).split(',')
     .map(function(u) { return u.trim(); })
     .filter(function(u) { return u && u !== urlTrim; });
-  celda.setValue(fotos.join(','));
-  return { ok: true, fotos: fotos };
-}
-
-function deleteFoto(nro, url, email) {
-  verificarAdmin(email);
-  var sheet  = getSheet(SHEET_NAME_LOCALES);
-  var rowNum = buscarNumFila(sheet, Number(nro));
-  if (!rowNum) return { error: 'Registro no encontrado' };
-  var celda  = sheet.getRange(rowNum, COLS.FOTOS);
-  var fotos  = String(celda.getValue()).split(',').map(function(u){ return u.trim(); }).filter(function(u){ return u && u !== url; });
   celda.setValue(fotos.join(','));
   return { ok: true, fotos: fotos };
 }
