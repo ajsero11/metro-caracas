@@ -683,6 +683,11 @@ function formatFecha(val) {
     const d = new Date((val - 25569) * 86400 * 1000);
     return d.toLocaleDateString('es-VE');
   }
+  // ISO string como "2026-04-01T07:00:00.000Z"
+  if (typeof val === 'string' && val.includes('T')) {
+    const d = new Date(val);
+    return d.toLocaleDateString('es-VE');
+  }
   return val;
 }
 
@@ -691,6 +696,9 @@ function fechaInput(val) {
   if (typeof val === 'number') {
     const d = new Date((val - 25569) * 86400 * 1000);
     return d.toISOString().split('T')[0];
+  }
+  if (typeof val === 'string' && val.includes('T')) {
+    return val.split('T')[0];
   }
   return val;
 }
