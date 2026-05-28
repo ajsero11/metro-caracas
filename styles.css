@@ -202,29 +202,22 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color:
   padding: 0 20px 24px;
 }
 
-/* Gráficas con scroll horizontal */
+/* Gráficas en grid 2x2 */
 .charts-section { min-width: 0; }
 .charts-scroll {
-  display: flex;
-  gap: 14px;
-  overflow-x: auto;
-  padding-bottom: 10px;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
-.charts-scroll::-webkit-scrollbar { height: 5px; }
-.charts-scroll::-webkit-scrollbar-track { background: var(--border); border-radius: 4px; }
-.charts-scroll::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
 
 .chart-card {
-  background: var(--card-bg); border-radius: var(--radius); padding: 16px;
+  background: var(--card-bg); border-radius: var(--radius); padding: 14px;
   box-shadow: var(--shadow); border: 1px solid var(--border); cursor: pointer;
-  transition: box-shadow var(--transition);
-  flex: 0 0 300px; scroll-snap-align: start;
+  transition: box-shadow var(--transition); min-width: 0;
 }
 .chart-card:hover { box-shadow: var(--shadow-md); }
-.chart-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 12px; }
-.chart-wrapper { position: relative; height: 200px; width: 100%; }
+.chart-title { font-size: 12px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
+.chart-wrapper { position: relative; height: 180px; width: 100%; }
 
 /* ===================== PANEL ALERTAS COLAPSABLE ===================== */
 .alertas-panel {
@@ -613,16 +606,14 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color:
   .directorio-lista, .contratos-section, .pagos-section { padding: 16px 28px 40px; }
   .catalogo-stats { padding: 16px 28px 0; }
   .chart-modal-wrapper { height: 380px; }
-  .chart-card { flex: 0 0 340px; }
 }
 
 @media (min-width: 1024px) {
   /* Gráficas + alertas lado a lado */
   .resumen-body { flex-direction: row; align-items: flex-start; }
   .charts-section { flex: 1; min-width: 0; }
-  .alertas-panel { width: 320px; flex-shrink: 0; }
+  .alertas-panel { width: 300px; flex-shrink: 0; }
   .alertas-panel-lista { max-height: 500px; }
-  .chart-card { flex: 0 0 300px; }
 }
 
 @media (min-width: 1024px) {

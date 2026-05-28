@@ -224,12 +224,13 @@ function renderAlertas(locales) {
     return `
       <div class="alerta-item ${clase}" id="alerta-item-${idx}">
         <div class="alerta-header" onclick="toggleAlerta(${idx})">
-          <span class="alerta-local">${l.local}</span>
+          <span class="alerta-local">${l.estacion}</span>
           <span class="alerta-dias ${claseDias}">${texto}</span>
           <span class="alerta-chevron">▾</span>
         </div>
         <div class="alerta-detalle">
-          <div><strong>Estación:</strong> ${l.estacion} — Línea ${l.linea}</div>
+          <div><strong>Local:</strong> ${l.local}</div>
+          <div><strong>Línea:</strong> ${l.linea}</div>
           <div><strong>Inquilino:</strong> ${l.arrendatario || 'Sin inquilino'}</div>
           <div><strong>Vencimiento:</strong> ${formatFecha(l.fin)}</div>
           ${l.contrato ? '<div><strong>Contrato:</strong> '+l.contrato+'</div>' : ''}
