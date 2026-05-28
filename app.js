@@ -364,7 +364,7 @@ function eliminarDesdeModal() {
 function abrirGestionUsuarios() {
   document.getElementById('form-usuario').style.display = 'none';
   document.getElementById('usuario-error').textContent = '';
-  cargarListaUsuarios();
+  document.getElementById('usuarios-lista').innerHTML = '';
   document.getElementById('modal-usuarios').classList.add('active');
 }
 
@@ -376,7 +376,9 @@ function cerrarModalUsuarios(e) {
 
 function cargarListaUsuarios() {
   const lista = document.getElementById('usuarios-lista');
-  lista.innerHTML = '<p style="color:var(--text-muted);font-size:13px">Cargando...</p>';
+  const btn   = document.getElementById('btn-ver-usuarios');
+  lista.innerHTML = '<p style="color:var(--text-muted);font-size:13px">⏳ Cargando usuarios...</p>';
+  if (btn) { btn.disabled = true; btn.textContent = 'Cargando...'; }
 
   apiGet({ action: 'getUsuarios', email: usuarioActual.email })
     .then(res => {
@@ -406,7 +408,10 @@ function cargarListaUsuarios() {
       `).join('');
     })
     .catch(err => {
-      lista.innerHTML = '<p style="color:red">Error al cargar usuarios: ' + err.message + '</p>';
+      lista.innerHTML = '<p style="color:red">⚠️ Error: ' + err.message + '</p>';
+    })
+    .finally(() => {
+      if (btn) { btn.disabled = false; btn.textContent = '👁 Ver / Editar Usuarios'; }
     });
 }
 
@@ -445,31 +450,37 @@ function guardarUsuario() {
   if (!email || !email.includes('@')) { errEl.textContent = 'Email inválido'; return; }
   if (!password) { errEl.textContent = 'La contraseña es obligatoria'; return; }
 
-  errEl.textContent = 'Guardando...';
+  const btnGuardar = document.getElementById('btn-guardar-usuario');
+  errEl.textContent = '';
+  btnGuardar.textContent = 'Guardando...';
+  btnGuardar.disabled = true;
+
+  const terminar = (err) => {
+    btnGuardar.textContent = 'Guardar';
+    btnGuardar.disabled = false;
+    if (err) { errEl.textContent = err; return; }
+    cancelarFormUsuario();
+    // Recargar lista solo si ya estaba visible
+    if (document.getElementById('usuarios-lista').innerHTML !== '') {
+      cargarListaUsuarios();
+    }
+  };
 
   if (usuarioEditando) {
-    // Editar
     apiPost({
       action: 'updateUsuario',
       targetEmail: usuarioEditando,
       data: { nombre, rol, password },
       email: usuarioActual.email
-    }).then(res => {
-      if (res.error) { errEl.textContent = res.error; return; }
-      cancelarFormUsuario();
-      cargarListaUsuarios();
-    });
+    }).then(res => terminar(res.error || null))
+      .catch(err => terminar(err.message));
   } else {
-    // Nuevo
     apiPost({
       action: 'addUsuario',
       data: { email, nombre, rol, password },
       email: usuarioActual.email
-    }).then(res => {
-      if (res.error) { errEl.textContent = res.error; return; }
-      cancelarFormUsuario();
-      cargarListaUsuarios();
-    });
+    }).then(res => terminar(res.error || null))
+      .catch(err => terminar(err.message));
   }
 }
 
@@ -490,16 +501,23 @@ function eliminarUsuario(emailTarget) {
 // ============================================================
 // API HELPERS
 // ============================================================
+function fetchConTimeout(promesa, ms) {
+  return Promise.race([
+    promesa,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo de espera agotado (timeout)')), ms))
+  ]);
+}
+
 function apiGet(params) {
   const qs = new URLSearchParams(params).toString();
-  return fetch(API + '?' + qs).then(r => r.json());
+  return fetchConTimeout(fetch(API + '?' + qs).then(r => r.json()), 15000);
 }
 
 function apiPost(body) {
-  return fetch(API, {
+  return fetchConTimeout(fetch(API, {
     method: 'POST',
     body: JSON.stringify(body)
-  }).then(r => r.json());
+  }).then(r => r.json()), 15000);
 }
 
 // ============================================================

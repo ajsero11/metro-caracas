@@ -212,9 +212,14 @@
     <button class="modal-close" onclick="cerrarModalUsuarios()">✕</button>
     <h2>👥 Gestión de Usuarios</h2>
 
-    <div id="usuarios-lista" style="margin: 16px 0;"></div>
+    <!-- Botones principales -->
+    <div style="display:flex; gap:10px; margin:16px 0;">
+      <button class="btn-primary" onclick="mostrarFormUsuario(null)">+ Agregar Usuario</button>
+      <button class="btn-secondary" id="btn-ver-usuarios" onclick="cargarListaUsuarios()">👁 Ver / Editar Usuarios</button>
+    </div>
 
-    <button class="btn-primary" onclick="mostrarFormUsuario(null)" style="margin-bottom:12px">+ Agregar Usuario</button>
+    <!-- Lista (oculta hasta que el usuario la pida) -->
+    <div id="usuarios-lista" style="margin-bottom:12px;"></div>
 
     <!-- Formulario inline -->
     <div id="form-usuario" style="display:none; background:var(--bg); border-radius:12px; padding:16px; margin-top:8px;">
@@ -242,7 +247,7 @@
       </div>
       <div class="form-acciones">
         <button class="btn-secondary" onclick="cancelarFormUsuario()">Cancelar</button>
-        <button class="btn-primary" onclick="guardarUsuario()">Guardar</button>
+        <button class="btn-primary" id="btn-guardar-usuario" onclick="guardarUsuario()">Guardar</button>
       </div>
       <div id="usuario-error" class="error-msg"></div>
     </div>
