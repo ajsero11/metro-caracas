@@ -191,41 +191,65 @@ function renderResumen() {
   renderCharts(locales);
 }
 
+let _todasExpandidas = false;
+
 function renderAlertas(locales) {
-  const hoy    = new Date();
-  hoy.setHours(0,0,0,0);
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
   const alertas = [];
 
   locales.forEach(l => {
     if (!l.fin || l.status !== 'ARRENDADO') return;
-    const fin  = fechaObj(l.fin);
-    if (!fin) return;
+    const fin = fechaObj(l.fin); if (!fin) return;
     const dias = Math.round((fin - hoy) / 86400000);
     if (dias <= 30) alertas.push({ l, dias });
   });
 
   alertas.sort((a,b) => a.dias - b.dias);
 
+  const countEl = document.getElementById('alertas-count');
+  if (countEl) countEl.textContent = alertas.length;
+
   const el = document.getElementById('alertas-lista');
   if (alertas.length === 0) {
-    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px 0">Sin alertas pendientes ✅</div>';
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:12px;">Sin alertas pendientes ✅</div>';
     return;
   }
 
-  el.innerHTML = alertas.map(({l, dias}) => {
-    const clase = dias <= 5 ? 'alerta-roja' : 'alerta-amarilla';
-    const texto = dias < 0  ? 'VENCIDO hace ' + Math.abs(dias) + ' días'
-                : dias === 0 ? 'Vence HOY'
-                : 'Vence en ' + dias + ' días';
+  el.innerHTML = alertas.map(({l, dias}, idx) => {
+    const clase     = dias < 0 ? 'alerta-roja' : dias <= 5 ? 'alerta-roja' : 'alerta-amarilla';
+    const claseDias = dias <= 5 ? 'd-rojo' : 'd-amarillo';
+    const texto     = dias < 0  ? 'Vencido hace ' + Math.abs(dias) + 'd'
+                    : dias === 0 ? 'Vence HOY'
+                    : 'Vence en ' + dias + 'd';
     return `
-      <div class="alerta-item ${clase}">
-        <div>
+      <div class="alerta-item ${clase}" id="alerta-item-${idx}">
+        <div class="alerta-header" onclick="toggleAlerta(${idx})">
           <span class="alerta-local">${l.local}</span>
-          <span style="color:var(--text-muted);font-size:12px;"> — ${l.estacion} — ${l.arrendatario || 'Sin inquilino'}</span>
+          <span class="alerta-dias ${claseDias}">${texto}</span>
+          <span class="alerta-chevron">▾</span>
         </div>
-        <span class="alerta-dias">${texto}</span>
+        <div class="alerta-detalle">
+          <div><strong>Estación:</strong> ${l.estacion} — Línea ${l.linea}</div>
+          <div><strong>Inquilino:</strong> ${l.arrendatario || 'Sin inquilino'}</div>
+          <div><strong>Vencimiento:</strong> ${formatFecha(l.fin)}</div>
+          ${l.contrato ? '<div><strong>Contrato:</strong> '+l.contrato+'</div>' : ''}
+        </div>
       </div>`;
   }).join('');
+}
+
+function toggleAlerta(idx) {
+  const item = document.getElementById('alerta-item-' + idx);
+  if (item) item.classList.toggle('open');
+}
+
+function toggleTodasAlertas() {
+  _todasExpandidas = !_todasExpandidas;
+  document.querySelectorAll('.alerta-item').forEach(el => {
+    el.classList.toggle('open', _todasExpandidas);
+  });
+  const btn = document.getElementById('btn-expandir-todo');
+  if (btn) btn.textContent = _todasExpandidas ? 'Colapsar todo ▴' : 'Expandir todo ▾';
 }
 
 // ============================================================

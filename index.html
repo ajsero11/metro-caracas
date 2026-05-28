@@ -47,8 +47,14 @@
 
   <!-- SIDEBAR -->
   <nav class="app-sidebar" id="sidebar">
+    <!-- Logo en sidebar -->
+    <div class="sidebar-logo-area">
+      <img src="logometro.png" alt="Metro Caracas" class="sidebar-logo-img">
+      <div class="sidebar-logo-name">Metro Caracas</div>
+      <div class="sidebar-logo-sub">Locales Comerciales</div>
+    </div>
     <div class="sidebar-nav">
-      <div class="nav-section" style="margin-top:8px;">Menú Principal</div>
+      <div class="nav-section">Menú Principal</div>
       <div class="nav-item active" onclick="cambiarTab('resumen')" id="nav-resumen">
         <span class="nav-icon">📊</span><span>Resumen</span>
       </div>
@@ -118,32 +124,42 @@
         </div>
       </div>
 
-      <!-- Alertas -->
-      <div class="alertas-section">
-        <div class="alertas-title">🔔 Alertas de Contratos</div>
-        <div id="alertas-lista">
-          <div style="color:var(--text-muted);font-size:13px;">Cargando alertas...</div>
-        </div>
-      </div>
+      <!-- CUERPO: gráficas + alertas lado a lado -->
+      <div class="resumen-body">
 
-      <!-- Gráficas -->
-      <div class="charts-grid">
-        <div class="chart-card" onclick="abrirChartModal('status')">
-          <div class="chart-title">Distribución por Status</div>
-          <div class="chart-wrapper"><canvas id="chart-status"></canvas></div>
+        <!-- Gráficas con scroll horizontal -->
+        <div class="charts-section">
+          <div class="charts-scroll">
+            <div class="chart-card" onclick="abrirChartModal('status')">
+              <div class="chart-title">Distribución por Status</div>
+              <div class="chart-wrapper"><canvas id="chart-status"></canvas></div>
+            </div>
+            <div class="chart-card" onclick="abrirChartModal('vencimiento')">
+              <div class="chart-title">Contratos por Vencer (próx. 6 meses)</div>
+              <div class="chart-wrapper"><canvas id="chart-vencimiento"></canvas></div>
+            </div>
+            <div class="chart-card" onclick="abrirChartModal('ingresos')">
+              <div class="chart-title">Ingresos por Línea de Metro</div>
+              <div class="chart-wrapper"><canvas id="chart-ingresos"></canvas></div>
+            </div>
+            <div class="chart-card" onclick="abrirChartModal('ocupacion')">
+              <div class="chart-title">m² Arrendados vs Disponibles</div>
+              <div class="chart-wrapper"><canvas id="chart-ocupacion"></canvas></div>
+            </div>
+          </div>
         </div>
-        <div class="chart-card" onclick="abrirChartModal('vencimiento')">
-          <div class="chart-title">Contratos por Vencer (próx. 6 meses)</div>
-          <div class="chart-wrapper"><canvas id="chart-vencimiento"></canvas></div>
+
+        <!-- Panel de alertas colapsable -->
+        <div class="alertas-panel">
+          <div class="alertas-panel-header" onclick="toggleTodasAlertas()">
+            <span>🔔 Alertas de Contratos <span id="alertas-count" class="alertas-count"></span></span>
+            <button class="btn-expandir-todo" id="btn-expandir-todo">Expandir todo ▾</button>
+          </div>
+          <div id="alertas-lista" class="alertas-panel-lista">
+            <div style="color:var(--text-muted);font-size:13px;padding:12px;">Cargando alertas...</div>
+          </div>
         </div>
-        <div class="chart-card" onclick="abrirChartModal('ingresos')">
-          <div class="chart-title">Ingresos por Línea de Metro</div>
-          <div class="chart-wrapper"><canvas id="chart-ingresos"></canvas></div>
-        </div>
-        <div class="chart-card" onclick="abrirChartModal('ocupacion')">
-          <div class="chart-title">m² Arrendados vs Disponibles</div>
-          <div class="chart-wrapper"><canvas id="chart-ocupacion"></canvas></div>
-        </div>
+
       </div>
     </div>
 
