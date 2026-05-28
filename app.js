@@ -386,7 +386,9 @@ function cargarListaUsuarios() {
         return;
       }
 
-      lista.innerHTML = res.usuarios.map(u => `
+      // Guardar lista en memoria para editar sin pasar datos por onclick
+      window._usuariosList = res.usuarios;
+      lista.innerHTML = res.usuarios.map((u, idx) => `
         <div class="usuario-row">
           <div class="usuario-info">
             <span class="usuario-nombre">${u.nombre || '—'}</span>
@@ -397,11 +399,14 @@ function cargarListaUsuarios() {
             <span class="badge ${u.rol === 'admin' ? 'badge-ARRENDADO' : 'badge-DISPONIBLE'}">${u.rol}</span>
           </div>
           <div class="usuario-acciones">
-            <button class="btn-icon" onclick="mostrarFormUsuario('${u.email}', '${(u.nombre||'').replace(/'/g,"\\'")}', '${u.rol}', '${(u.password||'').replace(/'/g,"\\'")}')">✏️</button>
+            <button class="btn-icon" onclick="mostrarFormUsuarioIdx(${idx})">✏️</button>
             <button class="btn-icon btn-icon-danger" onclick="eliminarUsuario('${u.email}')">🗑️</button>
           </div>
         </div>
       `).join('');
+    })
+    .catch(err => {
+      lista.innerHTML = '<p style="color:red">Error al cargar usuarios: ' + err.message + '</p>';
     });
 }
 
@@ -417,6 +422,12 @@ function mostrarFormUsuario(emailEditar, nombre, rol, password) {
   document.getElementById('usuario-error').textContent = '';
   document.getElementById('form-usuario').style.display = 'block';
   document.getElementById('form-usuario').scrollIntoView({ behavior: 'smooth' });
+}
+
+function mostrarFormUsuarioIdx(idx) {
+  const u = (window._usuariosList || [])[idx];
+  if (!u) return;
+  mostrarFormUsuario(u.email, u.nombre, u.rol, u.password);
 }
 
 function cancelarFormUsuario() {
