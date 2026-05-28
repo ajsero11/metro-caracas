@@ -5,13 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Metro Caracas — Gestión de Locales</title>
 <link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
-<!-- LOGIN -->
+<!-- ==================== LOGIN ==================== -->
 <div id="login-screen" class="screen active">
   <div class="login-box">
-    <div class="login-logo">🚇</div>
+    <div class="login-logo">
+      <img src="logometro.png" alt="Metro Caracas" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span style="display:none;font-size:48px;">🚇</span>
+    </div>
     <h1>Metro Caracas</h1>
     <p>Gestión de Locales Comerciales</p>
     <input type="email" id="login-email" placeholder="Correo electrónico" autocomplete="email">
@@ -21,66 +25,260 @@
   </div>
 </div>
 
-<!-- APP PRINCIPAL -->
+<!-- ==================== APP ==================== -->
 <div id="app-screen" class="screen">
 
   <!-- HEADER -->
-  <header>
-    <div class="header-left">
-      <span class="logo">🚇</span>
-      <span class="titulo">Metro Caracas</span>
+  <header class="app-header">
+    <div class="header-logo">
+      <img src="logometro.png" alt="Metro Caracas" onerror="this.style.display='none'">
+      <div>
+        <div class="header-logo-text">Metro Caracas</div>
+        <div class="header-logo-sub">Locales Comerciales</div>
+      </div>
     </div>
     <div class="header-right">
-      <span id="user-nombre"></span>
+      <span id="user-nombre" class="header-user"></span>
       <span id="user-rol-badge" class="badge"></span>
-      <button class="btn-salir admin-only" id="btn-usuarios" onclick="abrirGestionUsuarios()" style="display:none">👥 Usuarios</button>
-      <button class="btn-salir" onclick="cerrarSesion()">Salir</button>
+      <button class="btn-header admin-only" id="btn-usuarios" onclick="abrirGestionUsuarios()" style="display:none">👥 Usuarios</button>
+      <button class="btn-header" onclick="cerrarSesion()">Salir</button>
     </div>
   </header>
 
-  <!-- FILTROS -->
-  <div class="filtros">
-    <input type="text" id="filtro-buscar" placeholder="🔍 Buscar arrendatario o local..." oninput="filtrar()">
-    <select id="filtro-linea" onchange="filtrar()">
-      <option value="">Todas las líneas</option>
-      <option value="1">Línea 1</option>
-      <option value="2">Línea 2</option>
-      <option value="3">Línea 3</option>
-      <option value="4">Línea 4</option>
-    </select>
-    <select id="filtro-estacion" onchange="filtrar()">
-      <option value="">Todas las estaciones</option>
-    </select>
-    <select id="filtro-status" onchange="filtrar()">
-      <option value="">Todos los status</option>
-      <option value="ARRENDADO">Arrendado</option>
-      <option value="DISPONIBLE">Disponible</option>
-      <option value="EN RECUPERACIÓN">En Recuperación</option>
-      <option value="ASIGNADO">Asignado</option>
-      <option value="COMODATO">Comodato</option>
-      <option value="EN ANÁLISIS">En Análisis</option>
-      <option value="DEPÓSITO">Depósito</option>
-    </select>
-    <button id="btn-nuevo" class="btn-primary" onclick="abrirFormulario(null)" style="display:none">+ Nuevo Local</button>
-  </div>
+  <!-- SIDEBAR -->
+  <nav class="app-sidebar" id="sidebar">
+    <div class="sidebar-nav">
+      <div class="nav-section" style="margin-top:8px;">Menú Principal</div>
+      <div class="nav-item active" onclick="cambiarTab('resumen')" id="nav-resumen">
+        <span class="nav-icon">📊</span><span>Resumen</span>
+      </div>
+      <div class="nav-item" onclick="cambiarTab('catalogo')" id="nav-catalogo">
+        <span class="nav-icon">🏪</span><span>Catálogo de Locales</span>
+      </div>
+      <div class="nav-item admin-only" onclick="cambiarTab('directorio')" id="nav-directorio" style="display:none">
+        <span class="nav-icon">📋</span><span>Directorio de Inquilinos</span>
+      </div>
+      <div class="nav-item admin-only" onclick="cambiarTab('contratos')" id="nav-contratos" style="display:none">
+        <span class="nav-icon">📄</span><span>Contratos de Renta</span>
+      </div>
+      <div class="nav-item admin-only" onclick="cambiarTab('pagos')" id="nav-pagos" style="display:none">
+        <span class="nav-icon">💰</span><span>Historial de Pagos</span>
+      </div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="sidebar-user-info">
+        <div class="sidebar-user-name" id="sidebar-nombre">—</div>
+        <div id="sidebar-email" style="font-size:11px;color:#4b5563;"></div>
+      </div>
+      <button class="btn-danger" style="width:100%;font-size:13px;padding:8px;" onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+  </nav>
 
-  <!-- CONTADOR -->
-  <div class="contador">
-    <span id="total-registros">Cargando...</span>
-  </div>
+  <!-- MAIN -->
+  <main class="app-main">
 
-  <!-- LISTA -->
-  <div id="lista-locales" class="lista"></div>
+    <!-- ====== TAB RESUMEN ====== -->
+    <div id="tab-resumen" class="tab-panel active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Resumen Inmobiliario</div>
+          <div class="page-subtitle" id="resumen-fecha"></div>
+        </div>
+      </div>
 
-  <!-- LOADING -->
-  <div id="loading" class="loading">
-    <div class="spinner"></div>
-    <p>Cargando datos...</p>
-  </div>
+      <!-- KPIs -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-icon">🏪</div>
+          <div class="kpi-label">Total Locales</div>
+          <div class="kpi-value" id="kpi-total">—</div>
+        </div>
+        <div class="kpi-card kpi-green">
+          <div class="kpi-icon">✅</div>
+          <div class="kpi-label">Arrendados</div>
+          <div class="kpi-value" id="kpi-arrendados">—</div>
+          <div class="kpi-sub" id="kpi-arrendados-pct"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🔑</div>
+          <div class="kpi-label">Disponibles</div>
+          <div class="kpi-value" id="kpi-disponibles">—</div>
+          <div class="kpi-sub" id="kpi-disponibles-pct"></div>
+        </div>
+        <div class="kpi-card kpi-yellow">
+          <div class="kpi-icon">⚠️</div>
+          <div class="kpi-label">En Recuperación</div>
+          <div class="kpi-value" id="kpi-recuperacion">—</div>
+        </div>
+        <div class="kpi-card kpi-red">
+          <div class="kpi-icon">💵</div>
+          <div class="kpi-label">Ingresos Totales</div>
+          <div class="kpi-value" id="kpi-ingresos">—</div>
+          <div class="kpi-sub">precio final / mes</div>
+        </div>
+      </div>
 
-</div>
+      <!-- Alertas -->
+      <div class="alertas-section">
+        <div class="alertas-title">🔔 Alertas de Contratos</div>
+        <div id="alertas-lista">
+          <div style="color:var(--text-muted);font-size:13px;">Cargando alertas...</div>
+        </div>
+      </div>
 
-<!-- MODAL DETALLE -->
+      <!-- Gráficas -->
+      <div class="charts-grid">
+        <div class="chart-card" onclick="abrirChartModal('status')">
+          <div class="chart-title">Distribución por Status</div>
+          <div class="chart-wrapper"><canvas id="chart-status"></canvas></div>
+        </div>
+        <div class="chart-card" onclick="abrirChartModal('vencimiento')">
+          <div class="chart-title">Contratos por Vencer (próx. 6 meses)</div>
+          <div class="chart-wrapper"><canvas id="chart-vencimiento"></canvas></div>
+        </div>
+        <div class="chart-card" onclick="abrirChartModal('ingresos')">
+          <div class="chart-title">Ingresos por Línea de Metro</div>
+          <div class="chart-wrapper"><canvas id="chart-ingresos"></canvas></div>
+        </div>
+        <div class="chart-card" onclick="abrirChartModal('ocupacion')">
+          <div class="chart-title">m² Arrendados vs Disponibles</div>
+          <div class="chart-wrapper"><canvas id="chart-ocupacion"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== TAB CATÁLOGO ====== -->
+    <div id="tab-catalogo" class="tab-panel">
+      <!-- Stats header -->
+      <div class="catalogo-stats">
+        <div class="stat-card s-total">
+          <div class="stat-num" id="cs-total">—</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-card s-arr">
+          <div class="stat-num" id="cs-arrendados">—</div>
+          <div class="stat-label">Arrendados</div>
+        </div>
+        <div class="stat-card s-disp">
+          <div class="stat-num" id="cs-disponibles">—</div>
+          <div class="stat-label">Disponibles</div>
+        </div>
+        <div class="stat-card s-rec">
+          <div class="stat-num" id="cs-recuperacion">—</div>
+          <div class="stat-label">En Recuperación</div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filtros-bar">
+        <input type="text" id="filtro-buscar" placeholder="🔍 Buscar arrendatario o local..." oninput="filtrar()">
+        <select id="filtro-linea" onchange="filtrar()">
+          <option value="">Todas las líneas</option>
+          <option value="1">Línea 1</option>
+          <option value="2">Línea 2</option>
+          <option value="3">Línea 3</option>
+          <option value="4">Línea 4</option>
+        </select>
+        <select id="filtro-estacion" onchange="filtrar()">
+          <option value="">Todas las estaciones</option>
+        </select>
+        <select id="filtro-status" onchange="filtrar()">
+          <option value="">Todos los status</option>
+          <option value="ARRENDADO">Arrendado</option>
+          <option value="DISPONIBLE">Disponible</option>
+          <option value="EN RECUPERACIÓN">En Recuperación</option>
+          <option value="ASIGNADO">Asignado</option>
+          <option value="COMODATO">Comodato</option>
+          <option value="EN ANÁLISIS">En Análisis</option>
+          <option value="DEPÓSITO">Depósito</option>
+        </select>
+        <button id="btn-nuevo" class="btn-primary" onclick="abrirFormulario(null)" style="display:none">+ Nuevo Local</button>
+      </div>
+
+      <div class="contador-bar">
+        <span id="total-registros">Cargando...</span>
+      </div>
+
+      <div id="lista-locales" class="lista"></div>
+      <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Cargando datos...</p>
+      </div>
+    </div>
+
+    <!-- ====== TAB DIRECTORIO ====== -->
+    <div id="tab-directorio" class="tab-panel">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Directorio de Inquilinos</div>
+          <div class="page-subtitle">Contactos y locales asignados</div>
+        </div>
+        <input type="text" id="filtro-directorio" placeholder="🔍 Buscar inquilino..." oninput="filtrarDirectorio()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;min-width:200px;">
+      </div>
+      <div class="directorio-lista" id="directorio-lista">
+        <div style="text-align:center;padding:40px;color:var(--text-muted);">Cargando directorio...</div>
+      </div>
+    </div>
+
+    <!-- ====== TAB CONTRATOS ====== -->
+    <div id="tab-contratos" class="tab-panel">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Contratos de Renta</div>
+          <div class="page-subtitle">Vencimientos y estado de contratos</div>
+        </div>
+      </div>
+      <div class="contratos-section">
+        <div class="contratos-filtro">
+          <button class="btn-filtro active" onclick="filtrarContratos('todos')" id="cf-todos">Todos</button>
+          <button class="btn-filtro" onclick="filtrarContratos('vencidos')" id="cf-vencidos">Vencidos</button>
+          <button class="btn-filtro" onclick="filtrarContratos('proximos')" id="cf-proximos">≤30 días</button>
+          <button class="btn-filtro" onclick="filtrarContratos('vigentes')" id="cf-vigentes">Vigentes</button>
+        </div>
+        <div id="contratos-lista">
+          <div style="text-align:center;padding:40px;color:var(--text-muted);">Cargando contratos...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====== TAB PAGOS ====== -->
+    <div id="tab-pagos" class="tab-panel">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Historial de Pagos</div>
+          <div class="page-subtitle">Comprobantes registrados</div>
+        </div>
+        <button class="btn-primary" onclick="abrirModalPago()">+ Registrar Pago</button>
+      </div>
+      <div class="pagos-section" id="pagos-lista">
+        <div style="text-align:center;padding:40px;color:var(--text-muted);">Cargando pagos...</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAV (mobile) -->
+  <nav class="bottom-nav">
+    <div class="bottom-nav-item active" onclick="cambiarTab('resumen')" id="bnav-resumen">
+      <span class="nav-icon">📊</span><span class="bottom-nav-label">Resumen</span>
+    </div>
+    <div class="bottom-nav-item" onclick="cambiarTab('catalogo')" id="bnav-catalogo">
+      <span class="nav-icon">🏪</span><span class="bottom-nav-label">Catálogo</span>
+    </div>
+    <div class="bottom-nav-item admin-only" onclick="cambiarTab('directorio')" id="bnav-directorio" style="display:none">
+      <span class="nav-icon">📋</span><span class="bottom-nav-label">Directorio</span>
+    </div>
+    <div class="bottom-nav-item admin-only" onclick="cambiarTab('contratos')" id="bnav-contratos" style="display:none">
+      <span class="nav-icon">📄</span><span class="bottom-nav-label">Contratos</span>
+    </div>
+    <div class="bottom-nav-item admin-only" onclick="cambiarTab('pagos')" id="bnav-pagos" style="display:none">
+      <span class="nav-icon">💰</span><span class="bottom-nav-label">Pagos</span>
+    </div>
+  </nav>
+
+</div><!-- /#app-screen -->
+
+<!-- ==================== MODAL DETALLE ==================== -->
 <div id="modal-detalle" class="modal-overlay" onclick="cerrarModal(event)">
   <div class="modal-box">
     <button class="modal-close" onclick="cerrarModalDetalle()">✕</button>
@@ -102,9 +300,9 @@
     <!-- BOTÓN SUBIR FOTO -->
     <div class="foto-upload-area">
       <input type="file" id="input-foto" accept="image/*" capture="environment" style="display:none" onchange="subirFoto()">
-      <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
-        <input type="text" id="input-foto-nombre" placeholder="Nombre descriptivo de la foto (ej: entrada, local, fachada)" style="padding:8px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; outline:none;">
-        <div style="display:flex; gap:10px; align-items:center;">
+      <div style="display:flex;flex-direction:column;gap:8px;width:100%;">
+        <input type="text" id="input-foto-nombre" placeholder="Nombre descriptivo (ej: entrada, fachada, local)" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;">
+        <div style="display:flex;gap:10px;align-items:center;">
           <button class="btn-foto" onclick="document.getElementById('input-foto').click()">📷 Seleccionar foto</button>
           <div id="upload-progress" style="display:none" class="upload-progress">Subiendo foto...</div>
         </div>
@@ -125,16 +323,16 @@
         <div class="dato"><span class="dato-label">Precio final</span><span id="det-precio-final" style="font-weight:700;color:var(--primary);">—</span></div>
         <div class="dato dato-full">
           <span class="dato-label">Observaciones</span>
-          <textarea id="det-obs" rows="3" style="width:100%; padding:8px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; resize:vertical; outline:none;" placeholder="Sin observaciones"></textarea>
+          <textarea id="det-obs" rows="3" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical;outline:none;" placeholder="Sin observaciones"></textarea>
           <button class="btn-guardar-obs" id="btn-guardar-obs" onclick="guardarObservaciones()">💾 Guardar observaciones</button>
-          <div id="obs-msg" style="font-size:12px; min-height:16px; margin-top:2px;"></div>
+          <div id="obs-msg" style="font-size:12px;min-height:16px;margin-top:2px;"></div>
         </div>
       </div>
     </div>
 
     <!-- PANEL PRECIOS (solo admin) -->
-    <div id="panel-precios" style="display:none; background:var(--bg); border-radius:12px; padding:16px; margin-top:12px;">
-      <p style="font-size:11px; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:12px; font-weight:600;">Editar Precios</p>
+    <div id="panel-precios" class="panel-precios" style="display:none;">
+      <p class="panel-precios-title">Editar Precios</p>
       <div class="form-grid">
         <div class="form-group">
           <label>Monto mensual $</label>
@@ -145,12 +343,12 @@
           <input type="number" id="edit-contingencia" step="0.01" min="0" max="100" placeholder="0" oninput="calcularPrecioFinal()">
         </div>
       </div>
-      <div style="background:white; border-radius:8px; padding:12px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-size:12px; color:var(--text-muted); text-transform:uppercase;">Precio final</span>
-        <span id="edit-precio-final-calc" style="font-size:20px; font-weight:700; color:var(--primary);">—</span>
+      <div class="precio-final-display">
+        <span class="precio-final-label">Precio final</span>
+        <span id="edit-precio-final-calc" class="precio-final-valor">—</span>
       </div>
       <button class="btn-guardar-obs" id="btn-guardar-precios" onclick="guardarPrecios()">💾 Guardar precios</button>
-      <div id="precios-msg" style="font-size:12px; min-height:16px; margin-top:4px;"></div>
+      <div id="precios-msg" style="font-size:12px;min-height:16px;margin-top:4px;"></div>
     </div>
 
     <!-- ACCIONES ADMIN -->
@@ -161,11 +359,11 @@
   </div>
 </div>
 
-<!-- MODAL FORMULARIO LOCAL -->
+<!-- ==================== MODAL FORMULARIO LOCAL ==================== -->
 <div id="modal-form" class="modal-overlay" onclick="cerrarModalForm(event)">
   <div class="modal-box modal-form-box">
     <button class="modal-close" onclick="cerrarModalForm()">✕</button>
-    <h2 id="form-titulo">Nuevo Local</h2>
+    <h2 id="form-titulo" style="margin-bottom:16px;">Nuevo Local</h2>
 
     <div class="form-grid">
       <div class="form-group">
@@ -239,24 +437,21 @@
   </div>
 </div>
 
-<!-- MODAL GESTIÓN DE USUARIOS (solo admin) -->
+<!-- ==================== MODAL GESTIÓN USUARIOS ==================== -->
 <div id="modal-usuarios" class="modal-overlay" onclick="cerrarModalUsuarios(event)">
   <div class="modal-box modal-form-box">
     <button class="modal-close" onclick="cerrarModalUsuarios()">✕</button>
-    <h2>👥 Gestión de Usuarios</h2>
+    <h2 style="margin-bottom:16px;">👥 Gestión de Usuarios</h2>
 
-    <!-- Botones principales -->
-    <div style="display:flex; gap:10px; margin:16px 0;">
+    <div style="display:flex;gap:10px;margin-bottom:16px;">
       <button class="btn-primary" onclick="mostrarFormUsuario(null)">+ Agregar Usuario</button>
       <button class="btn-secondary" id="btn-ver-usuarios" onclick="cargarListaUsuarios()">👁 Ver / Editar Usuarios</button>
     </div>
 
-    <!-- Lista (oculta hasta que el usuario la pida) -->
     <div id="usuarios-lista" style="margin-bottom:12px;"></div>
 
-    <!-- Formulario inline -->
-    <div id="form-usuario" style="display:none; background:var(--bg); border-radius:12px; padding:16px; margin-top:8px;">
-      <h3 id="form-usuario-titulo" style="font-size:15px; margin-bottom:12px;">Nuevo Usuario</h3>
+    <div id="form-usuario" style="display:none;background:var(--bg);border-radius:12px;padding:16px;margin-top:8px;">
+      <h3 id="form-usuario-titulo" style="font-size:15px;margin-bottom:12px;">Nuevo Usuario</h3>
       <div class="form-grid">
         <div class="form-group form-full">
           <label>Email</label>
@@ -284,6 +479,48 @@
       </div>
       <div id="usuario-error" class="error-msg"></div>
     </div>
+  </div>
+</div>
+
+<!-- ==================== MODAL CHART ==================== -->
+<div id="modal-chart" class="modal-overlay" onclick="cerrarModalChart(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="cerrarModalChart()">✕</button>
+    <h2 id="chart-modal-title" style="margin-bottom:8px;"></h2>
+    <p id="chart-modal-desc" class="chart-modal-desc"></p>
+    <div class="chart-modal-wrapper"><canvas id="chart-modal-canvas"></canvas></div>
+    <div id="chart-modal-tabla"></div>
+  </div>
+</div>
+
+<!-- ==================== MODAL REGISTRAR PAGO ==================== -->
+<div id="modal-pago" class="modal-overlay" onclick="cerrarModalPago(event)">
+  <div class="modal-box modal-form-box">
+    <button class="modal-close" onclick="cerrarModalPago()">✕</button>
+    <h2 style="margin-bottom:16px;">💰 Registrar Pago</h2>
+    <div class="form-grid">
+      <div class="form-group form-full">
+        <label>Local</label>
+        <select id="pago-local-select"></select>
+      </div>
+      <div class="form-group">
+        <label>Fecha Desde</label>
+        <input type="date" id="pago-desde">
+      </div>
+      <div class="form-group">
+        <label>Fecha Hasta</label>
+        <input type="date" id="pago-hasta">
+      </div>
+      <div class="form-group form-full">
+        <label>Foto del comprobante</label>
+        <input type="file" id="input-foto-pago" accept="image/*" capture="environment">
+      </div>
+    </div>
+    <div class="form-acciones">
+      <button class="btn-secondary" onclick="cerrarModalPago()">Cancelar</button>
+      <button class="btn-primary" onclick="guardarPago()">Guardar Pago</button>
+    </div>
+    <div id="pago-msg" style="font-size:13px;min-height:18px;margin-top:8px;"></div>
   </div>
 </div>
 
