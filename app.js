@@ -196,7 +196,9 @@ function abrirDetalle(nro) {
   document.getElementById('det-area').textContent = l.area ? l.area + ' m²' : '—';
   document.getElementById('det-mts').textContent = l.mts_usd ? '$ ' + l.mts_usd : '—';
   document.getElementById('det-monto').textContent = l.monto ? '$ ' + Number(l.monto).toLocaleString('es-VE', {minimumFractionDigits:2}) : '—';
-  document.getElementById('det-obs').textContent = l.observaciones || '—';
+  document.getElementById('det-obs').value = l.observaciones || '';
+  document.getElementById('obs-msg').textContent = '';
+  document.getElementById('obs-msg').style.color = '';
 
   const statusBadge = document.getElementById('det-status-badge');
   statusBadge.textContent = l.status;
@@ -204,6 +206,7 @@ function abrirDetalle(nro) {
 
   renderGaleria(l.fotos || []);
   document.getElementById('input-foto').dataset.nro = nro;
+  document.getElementById('input-foto-nombre').value = '';
 
   const accionesAdmin = document.getElementById('modal-acciones-admin');
   accionesAdmin.style.display = usuarioActual.rol === 'admin' ? 'flex' : 'none';
@@ -266,9 +269,16 @@ function cerrarModal(e) {
 // SUBIR FOTO
 // ============================================================
 function subirFoto() {
-  const input = document.getElementById('input-foto');
-  const file  = input.files[0];
+  const input    = document.getElementById('input-foto');
+  const file     = input.files[0];
+  const nombreEl = document.getElementById('input-foto-nombre');
   if (!file || !localActual) return;
+
+  // Construir nombre: ESTACION_nombreDescriptivo.ext
+  const estacion   = (localActual.estacion || 'LOCAL').toUpperCase().replace(/\s+/g, '_');
+  const nombreDesc = (nombreEl.value.trim() || 'foto').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-áéíóúÁÉÍÓÚñÑ]/g, '');
+  const ext        = file.name.split('.').pop().toLowerCase();
+  const fileName   = estacion + '_' + nombreDesc + '.' + ext;
 
   const progress = document.getElementById('upload-progress');
   progress.style.display = 'block';
@@ -280,11 +290,12 @@ function subirFoto() {
       action: 'uploadFoto',
       nro: localActual.nro,
       base64: base64,
-      fileName: file.name,
+      fileName: fileName,
       email: usuarioActual.email
     }).then(res => {
       progress.style.display = 'none';
       input.value = '';
+      nombreEl.value = '';
       if (res.error) { alert('Error: ' + res.error); return; }
 
       if (!localActual.fotos) localActual.fotos = [];
@@ -299,6 +310,46 @@ function subirFoto() {
     });
   };
   reader.readAsDataURL(file);
+}
+
+// ============================================================
+// GUARDAR OBSERVACIONES DESDE MODAL DETALLE
+// ============================================================
+function guardarObservaciones() {
+  if (!localActual) return;
+  const obs   = document.getElementById('det-obs').value.trim();
+  const msg   = document.getElementById('obs-msg');
+  const btn   = document.getElementById('btn-guardar-obs');
+
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
+  msg.textContent = '';
+
+  apiPost({
+    action: 'updateLocal',
+    nro: localActual.nro,
+    data: { observaciones: obs },
+    email: usuarioActual.email
+  }).then(res => {
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar observaciones';
+    if (res.error) {
+      msg.style.color = 'var(--danger)';
+      msg.textContent = res.error;
+      return;
+    }
+    localActual.observaciones = obs;
+    const idx = todosLosLocales.findIndex(l => l.nro === localActual.nro);
+    if (idx !== -1) todosLosLocales[idx].observaciones = obs;
+    msg.style.color = 'var(--success)';
+    msg.textContent = '✓ Guardado';
+    setTimeout(() => { msg.textContent = ''; }, 2000);
+  }).catch(err => {
+    btn.disabled = false;
+    btn.textContent = '💾 Guardar observaciones';
+    msg.style.color = 'var(--danger)';
+    msg.textContent = err.message;
+  });
 }
 
 // ============================================================

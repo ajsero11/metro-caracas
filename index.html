@@ -102,8 +102,13 @@
     <!-- BOTÓN SUBIR FOTO -->
     <div class="foto-upload-area">
       <input type="file" id="input-foto" accept="image/*" capture="environment" style="display:none" onchange="subirFoto()">
-      <button class="btn-foto" onclick="document.getElementById('input-foto').click()">📷 Agregar foto</button>
-      <div id="upload-progress" style="display:none" class="upload-progress">Subiendo foto...</div>
+      <div style="display:flex; flex-direction:column; gap:8px; width:100%;">
+        <input type="text" id="input-foto-nombre" placeholder="Nombre descriptivo de la foto (ej: entrada, local, fachada)" style="padding:8px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; outline:none;">
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn-foto" onclick="document.getElementById('input-foto').click()">📷 Seleccionar foto</button>
+          <div id="upload-progress" style="display:none" class="upload-progress">Subiendo foto...</div>
+        </div>
+      </div>
     </div>
 
     <!-- DATOS -->
@@ -116,7 +121,12 @@
         <div class="dato"><span class="dato-label">Área m²</span><span id="det-area"></span></div>
         <div class="dato"><span class="dato-label">$/m²</span><span id="det-mts"></span></div>
         <div class="dato"><span class="dato-label">Monto mensual</span><span id="det-monto"></span></div>
-        <div class="dato dato-full"><span class="dato-label">Observaciones</span><span id="det-obs"></span></div>
+        <div class="dato dato-full">
+          <span class="dato-label">Observaciones</span>
+          <textarea id="det-obs" rows="3" style="width:100%; padding:8px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; font-family:inherit; resize:vertical; outline:none;" placeholder="Sin observaciones"></textarea>
+          <button class="btn-guardar-obs" id="btn-guardar-obs" onclick="guardarObservaciones()">💾 Guardar observaciones</button>
+          <div id="obs-msg" style="font-size:12px; min-height:16px; margin-top:2px;"></div>
+        </div>
       </div>
     </div>
 

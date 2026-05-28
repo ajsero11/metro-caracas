@@ -208,18 +208,35 @@ function deleteLocal(nro, email) {
 }
 
 function uploadFoto(nro, base64, fileName, email) {
-  var folder  = DriveApp.getFolderById(DRIVE_FOLDER_ID);
-  var decoded = Utilities.newBlob(Utilities.base64Decode(base64), 'image/jpeg', fileName);
-  var file    = folder.createFile(decoded);
+  var folder   = DriveApp.getFolderById(DRIVE_FOLDER_ID);
+  var mimeType = 'image/jpeg';
+  if (fileName && fileName.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+  var decoded  = Utilities.newBlob(Utilities.base64Decode(base64), mimeType, fileName);
+  var file     = folder.createFile(decoded);
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   var url    = 'https://drive.google.com/file/d/' + file.getId() + '/view';
   var sheet  = getSheet(SHEET_NAME_LOCALES);
   var rowNum = buscarNumFila(sheet, Number(nro));
   if (!rowNum) return { error: 'Registro no encontrado' };
   var celda  = sheet.getRange(rowNum, COLS.FOTOS);
-  var actual = celda.getValue();
+  var actual = String(celda.getValue()).trim();
   celda.setValue(actual ? actual + ',' + url : url);
   return { ok: true, url: url };
+}
+
+function deleteFoto(nro, url, email) {
+  verificarAdmin(email);
+  var sheet  = getSheet(SHEET_NAME_LOCALES);
+  var rowNum = buscarNumFila(sheet, Number(nro));
+  if (!rowNum) return { error: 'Registro no encontrado' };
+  var celda   = sheet.getRange(rowNum, COLS.FOTOS);
+  var actual  = String(celda.getValue()).trim();
+  var urlTrim = String(url).trim();
+  var fotos   = actual.split(',')
+    .map(function(u) { return u.trim(); })
+    .filter(function(u) { return u && u !== urlTrim; });
+  celda.setValue(fotos.join(','));
+  return { ok: true, fotos: fotos };
 }
 
 function deleteFoto(nro, url, email) {

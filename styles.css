@@ -198,6 +198,16 @@ header {
 }
 .btn-eliminar-foto:hover { background: var(--danger); }
 
+/* GUARDAR OBSERVACIONES */
+.btn-guardar-obs {
+  margin-top: 8px;
+  background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 8px; padding: 7px 16px; cursor: pointer;
+  font-size: 13px; color: var(--primary); font-weight: 500;
+}
+.btn-guardar-obs:hover { border-color: var(--primary); background: #e8f0fe; }
+.btn-guardar-obs:disabled { opacity: 0.6; cursor: not-allowed; }
+
 /* FOTO UPLOAD */
 .foto-upload-area { margin-bottom: 16px; display: flex; align-items: center; gap: 12px; }
 .btn-foto {
