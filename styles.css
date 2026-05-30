@@ -567,6 +567,27 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color:
 .pago-fechas { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
 .pago-registro { font-size: 11px; color: var(--accent); margin-top: 2px; }
 
+/* ===================== COMPARATIVA TABLA ===================== */
+.comp-tabla {
+  width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px;
+}
+.comp-tabla th {
+  background: var(--sidebar-bg); color: white; padding: 10px 12px;
+  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.comp-tabla td {
+  padding: 9px 12px; border-bottom: 1px solid var(--border);
+}
+.comp-tabla tbody tr:hover { background: var(--bg); }
+.comp-tabla tbody tr:last-child td { border-bottom: none; }
+.comp-val-actual  { font-weight: 600; color: var(--text-muted); }
+.comp-val-2026    { font-weight: 700; color: var(--success); }
+.comp-val-neg     { font-weight: 700; color: var(--danger); }
+.comp-pct-pos { color: var(--success); font-weight: 700; }
+.comp-pct-neg { color: var(--danger); font-weight: 700; }
+.comp-pct-neu { color: var(--text-muted); font-weight: 600; }
+
 /* ===================== CHART MODAL ===================== */
 #modal-chart .modal-box { border-radius: 20px 20px 0 0; }
 .chart-modal-wrapper { position: relative; height: 300px; }

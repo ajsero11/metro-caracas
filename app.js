@@ -76,7 +76,7 @@ function mostrarApp() {
     el.style.display = esAdmin ? (el.tagName === 'DIV' ? 'flex' : 'inline-block') : 'none';
   });
   // nav-items son divs flex
-  ['nav-directorio','nav-contratos','nav-pagos','bnav-directorio','bnav-contratos','bnav-pagos'].forEach(id => {
+  ['nav-directorio','nav-contratos','nav-pagos','nav-comparativa','bnav-directorio','bnav-contratos','bnav-pagos','bnav-comparativa'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = esAdmin ? 'flex' : 'none';
   });
@@ -94,7 +94,7 @@ function mostrarApp() {
 // ============================================================
 // NAVEGACIÓN POR PESTAÑAS
 // ============================================================
-const TABS = ['resumen','catalogo','directorio','contratos','pagos'];
+const TABS = ['resumen','catalogo','directorio','contratos','pagos','comparativa'];
 
 function cambiarTab(tab) {
   tabActual = tab;
@@ -107,10 +107,11 @@ function cambiarTab(tab) {
     if (navBot)  navBot.classList.toggle('active', t === tab);
   });
 
-  if (tab === 'resumen'    && todosLosLocales.length) renderResumen();
+  if (tab === 'resumen'     && todosLosLocales.length) renderResumen();
   if (tab === 'directorio') cargarDirectorio();
   if (tab === 'contratos')  renderContratos('todos');
   if (tab === 'pagos')      cargarPagos();
+  if (tab === 'comparativa') renderComparativa();
 }
 
 // ============================================================
@@ -426,6 +427,30 @@ function abrirChartModal(tipo) {
       options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
     });
     tabla.innerHTML = tablaHTML(['Línea','Ingresos $'], Object.entries(ing).map(([k,v])=>['Línea '+k,'$ '+v.toLocaleString('es-VE',{minimumFractionDigits:2})]));
+  }
+
+  if (tipo === 'comparativa') {
+    title.textContent = 'Comparativa Ingresos Actuales vs 2026';
+    desc.textContent  = 'Ingresos mensuales actuales comparados con los proyectados para 2026 por línea.';
+    const lineas = [1,2,3,4];
+    const actuales = lineas.map(ln => locales.filter(l=>Number(l.linea)===ln).reduce((s,l)=>s+(Number(l.monto)||0),0));
+    const proj2026 = lineas.map(ln => locales.filter(l=>Number(l.linea)===ln).reduce((s,l)=>s+(Number(l.total_2026)||0),0));
+    chartModalInst = new Chart(canvas, {
+      type:'bar',
+      data:{ labels:['Línea 1','Línea 2','Línea 3','Línea 4'],
+        datasets:[
+          { label:'Actual', data:actuales, backgroundColor:'#9ca3a8', borderRadius:6 },
+          { label:'2026',   data:proj2026, backgroundColor:'#e31b23', borderRadius:6 }
+        ]
+      },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}}, scales:{y:{beginAtZero:true}} }
+    });
+    tabla.innerHTML = tablaHTML(['Línea','Actual $','2026 $','Diferencia $'],
+      lineas.map((ln,i)=>['Línea '+ln,
+        '$ '+actuales[i].toLocaleString('es-VE',{minimumFractionDigits:2}),
+        '$ '+proj2026[i].toLocaleString('es-VE',{minimumFractionDigits:2}),
+        (proj2026[i]-actuales[i]>=0?'▲ ':'▼ ')+'$ '+Math.abs(proj2026[i]-actuales[i]).toLocaleString('es-VE',{minimumFractionDigits:2})
+      ]));
   }
 
   if (tipo === 'ocupacion') {
@@ -963,6 +988,109 @@ function guardarPago() {
   } else {
     enviar('');
   }
+}
+
+// ============================================================
+// COMPARATIVA DE PRECIOS 2026
+// ============================================================
+let _compLineaFiltro = 'todas';
+let _compBusqueda   = '';
+
+function renderComparativa() {
+  const locales = todosLosLocales.filter(l => Number(l.total_2026) > 0 || Number(l.monto) > 0);
+
+  // KPIs globales (todos los locales con datos)
+  const totalActual = locales.reduce((s,l) => s + (Number(l.monto)||0), 0);
+  const total2026   = locales.reduce((s,l) => s + (Number(l.total_2026)||0), 0);
+  const diff        = total2026 - totalActual;
+  const pctProm     = locales.filter(l=>Number(l.monto)>0).length
+    ? locales.filter(l=>Number(l.monto)>0).reduce((s,l)=>s+(Number(l.pct_incremento)||0),0) / locales.filter(l=>Number(l.monto)>0).length
+    : 0;
+
+  document.getElementById('comp-total-actual').textContent = '$ '+totalActual.toLocaleString('es-VE',{minimumFractionDigits:2});
+  document.getElementById('comp-total-2026').textContent   = '$ '+total2026.toLocaleString('es-VE',{minimumFractionDigits:2});
+  document.getElementById('comp-incremento').textContent   = (diff>=0?'+ ':'- ')+'$ '+Math.abs(diff).toLocaleString('es-VE',{minimumFractionDigits:2});
+  document.getElementById('comp-pct-promedio').textContent = pctProm.toFixed(1)+'%';
+
+  renderChartComparativa(locales);
+  renderTablaComparativa(locales);
+}
+
+function renderChartComparativa(locales) {
+  const lineas = [1,2,3,4];
+  const actuales = lineas.map(ln => locales.filter(l=>Number(l.linea)===ln).reduce((s,l)=>s+(Number(l.monto)||0),0));
+  const proj2026 = lineas.map(ln => locales.filter(l=>Number(l.linea)===ln).reduce((s,l)=>s+(Number(l.total_2026)||0),0));
+
+  crearOActualizarChart('chart-comparativa', {
+    type: 'bar',
+    data: {
+      labels: ['Línea 1','Línea 2','Línea 3','Línea 4'],
+      datasets: [
+        { label:'Actual', data:actuales, backgroundColor:'#9ca3a8', borderRadius:4 },
+        { label:'2026',   data:proj2026, backgroundColor:'#e31b23', borderRadius:4 }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom' } },
+      scales:{ y:{ beginAtZero:true } }
+    }
+  });
+}
+
+function renderTablaComparativa(localesFull) {
+  let locales = localesFull.filter(l => Number(l.total_2026) > 0 || Number(l.monto) > 0);
+
+  if (_compLineaFiltro !== 'todas') {
+    locales = locales.filter(l => String(l.linea) === _compLineaFiltro);
+  }
+  if (_compBusqueda) {
+    const q = _compBusqueda.toUpperCase();
+    locales = locales.filter(l => (l.estacion+' '+l.local+' '+(l.arrendatario||'')).toUpperCase().includes(q));
+  }
+
+  const tbody = document.getElementById('comp-tbody');
+  if (!locales.length) {
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--text-muted);">Sin resultados</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = locales.map(l => {
+    const actual = Number(l.monto)||0;
+    const nuevo  = Number(l.total_2026)||0;
+    const diff   = nuevo - actual;
+    const pct    = Number(l.pct_incremento)||0;
+    const clsDiff = diff > 0 ? 'comp-val-2026' : diff < 0 ? 'comp-val-neg' : 'comp-pct-neu';
+    const clsPct  = pct  > 0 ? 'comp-pct-pos'  : pct  < 0 ? 'comp-pct-neg' : 'comp-pct-neu';
+    const fmtD = n => n ? '$ '+Math.abs(n).toLocaleString('es-VE',{minimumFractionDigits:2}) : '—';
+    const signo = diff > 0 ? '▲ ' : diff < 0 ? '▼ ' : '';
+
+    return `<tr>
+      <td>${l.nro}</td>
+      <td>${l.estacion}</td>
+      <td>${l.local}</td>
+      <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.arrendatario||'—'}</td>
+      <td class="comp-val-actual">${fmtD(actual)}</td>
+      <td class="comp-val-2026">${fmtD(nuevo)}</td>
+      <td class="${clsDiff}">${signo}${fmtD(diff)}</td>
+      <td class="${clsPct}">${pct!==0?(pct>0?'+':'')+pct.toFixed(1)+'%':'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filtrarComparativa() {
+  _compBusqueda = document.getElementById('filtro-comparativa').value;
+  const locales = todosLosLocales.filter(l => Number(l.total_2026)>0 || Number(l.monto)>0);
+  renderTablaComparativa(locales);
+}
+
+function filtrarCompLinea(linea) {
+  _compLineaFiltro = linea;
+  ['todas','1','2','3','4'].forEach(l => {
+    document.getElementById('cfl-'+l).classList.toggle('active', l===linea);
+  });
+  const locales = todosLosLocales.filter(l => Number(l.total_2026)>0 || Number(l.monto)>0);
+  renderTablaComparativa(locales);
 }
 
 // ============================================================
