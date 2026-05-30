@@ -38,6 +38,9 @@
       </div>
     </div>
     <div class="header-right">
+      <button id="btn-cola-fotos" class="btn-cola-fotos" onclick="abrirModalCola()" style="display:none">
+        📷 <span id="cola-count">0</span> pendiente<span id="cola-plural"></span>
+      </button>
       <span id="user-nombre" class="header-user"></span>
       <span id="user-rol-badge" class="badge"></span>
       <button class="btn-header admin-only" id="btn-usuarios" onclick="abrirGestionUsuarios()" style="display:none">👥 Usuarios</button>
@@ -780,6 +783,21 @@
     <p id="chart-modal-desc" class="chart-modal-desc"></p>
     <div class="chart-modal-wrapper"><canvas id="chart-modal-canvas"></canvas></div>
     <div id="chart-modal-tabla"></div>
+  </div>
+</div>
+
+<!-- ==================== MODAL COLA DE FOTOS ==================== -->
+<div id="modal-cola" class="modal-overlay" onclick="cerrarModalCola(event)">
+  <div class="modal-box modal-form-box">
+    <button class="modal-close" onclick="cerrarModalCola()">✕</button>
+    <h2 style="margin-bottom:4px;">📷 Fotos Pendientes</h2>
+    <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Se enviarán automáticamente cuando haya conexión</p>
+    <div id="cola-estado" style="font-size:13px;margin-bottom:12px;"></div>
+    <div id="cola-lista" style="margin-bottom:16px;"></div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn-primary" onclick="procesarColaFotos(true)">🔄 Intentar enviar ahora</button>
+      <button class="btn-danger" onclick="vaciarCola()">🗑️ Vaciar cola</button>
+    </div>
   </div>
 </div>
 

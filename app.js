@@ -661,7 +661,7 @@ function cerrarModalDetalle() { document.getElementById('modal-detalle').classLi
 function cerrarModal(e) { if (e.target===e.currentTarget) cerrarModalDetalle(); }
 
 // ============================================================
-// SUBIR FOTO
+// SUBIR FOTO (con cola offline)
 // ============================================================
 function subirFoto() {
   const input    = document.getElementById('input-foto');
@@ -676,23 +676,215 @@ function subirFoto() {
 
   const progress = document.getElementById('upload-progress');
   progress.style.display = 'block';
+  progress.textContent   = 'Preparando foto...';
 
   const reader = new FileReader();
   reader.onload = function(e) {
     const base64 = e.target.result.split(',')[1];
-    apiPost({ action:'uploadFoto', nro:localActual.nro, base64, fileName, email:usuarioActual.email })
-      .then(res => {
-        progress.style.display='none';
-        input.value=''; nombreEl.value='';
-        if (res.error) { alert('Error: '+res.error); return; }
-        if (!localActual.fotos) localActual.fotos=[];
-        localActual.fotos.push(res.url);
-        renderGaleria(localActual.fotos);
-        const idx = todosLosLocales.findIndex(l=>l.nro===localActual.nro);
-        if (idx!==-1) todosLosLocales[idx].fotos = localActual.fotos;
-      }).catch(err=>{ progress.style.display='none'; alert('Error al subir: '+err.message); });
+
+    if (!navigator.onLine) {
+      // Sin conexión: guardar en cola
+      _encolarFoto({ nro:localActual.nro, estacion:localActual.estacion, local:localActual.local, base64, fileName, nombreDesc });
+      progress.style.display='none';
+      input.value=''; nombreEl.value='';
+      mostrarToast('Sin WiFi — foto guardada. Se enviará cuando haya conexión 📶');
+      return;
+    }
+
+    progress.textContent = 'Subiendo foto...';
+    _enviarFotoDirecta({ nro:localActual.nro, base64, fileName }, (res, err) => {
+      progress.style.display='none';
+      input.value=''; nombreEl.value='';
+      if (err || (res&&res.error)) {
+        // Fallo con conexión: encolar para reintento
+        _encolarFoto({ nro:localActual.nro, estacion:localActual.estacion, local:localActual.local, base64, fileName, nombreDesc });
+        mostrarToast('Error al subir — foto en cola para reintento 🔄');
+        return;
+      }
+      if (!localActual.fotos) localActual.fotos=[];
+      localActual.fotos.push(res.url);
+      renderGaleria(localActual.fotos);
+      const idx = todosLosLocales.findIndex(l=>l.nro===localActual.nro);
+      if (idx!==-1) todosLosLocales[idx].fotos = localActual.fotos;
+    });
   };
   reader.readAsDataURL(file);
+}
+
+function _enviarFotoDirecta(item, cb) {
+  apiPost({ action:'uploadFoto', nro:item.nro, base64:item.base64, fileName:item.fileName, email:usuarioActual.email })
+    .then(res => cb(res, null))
+    .catch(err => cb(null, err));
+}
+
+// ============================================================
+// COLA DE FOTOS OFFLINE
+// ============================================================
+const COLA_KEY = 'fotosQueue_metro';
+
+function _encolarFoto(datos) {
+  const cola = _obtenerCola();
+  const item = {
+    id:          Date.now() + '_' + Math.random().toString(36).substr(2,5),
+    nro:         datos.nro,
+    estacion:    datos.estacion||'',
+    local:       datos.local||'',
+    base64:      datos.base64,
+    fileName:    datos.fileName,
+    nombreDesc:  datos.nombreDesc||'',
+    timestamp:   new Date().toISOString(),
+    status:      'pendiente',
+    intentos:    0
+  };
+  cola.push(item);
+  _guardarCola(cola);
+  _actualizarIndicador();
+}
+
+function _obtenerCola() {
+  try { return JSON.parse(localStorage.getItem(COLA_KEY)||'[]'); }
+  catch { return []; }
+}
+function _guardarCola(cola) {
+  localStorage.setItem(COLA_KEY, JSON.stringify(cola));
+}
+
+function _actualizarIndicador() {
+  const cola  = _obtenerCola();
+  const btn   = document.getElementById('btn-cola-fotos');
+  const count = document.getElementById('cola-count');
+  const plural = document.getElementById('cola-plural');
+  if (!btn) return;
+  const pendientes = cola.filter(i => i.status !== 'ok').length;
+  if (pendientes === 0) { btn.style.display='none'; return; }
+  btn.style.display = 'inline-block';
+  count.textContent  = pendientes;
+  plural.textContent = pendientes === 1 ? '' : 's';
+}
+
+function procesarColaFotos(manual=false) {
+  if (!navigator.onLine && !manual) return;
+  const cola = _obtenerCola();
+  const pendientes = cola.filter(i => i.status === 'pendiente' || i.status === 'error');
+  if (!pendientes.length) {
+    if (manual) mostrarToast('No hay fotos pendientes ✅');
+    return;
+  }
+
+  const estadoEl = document.getElementById('cola-estado');
+  if (estadoEl) { estadoEl.textContent = `Enviando ${pendientes.length} foto(s)...`; estadoEl.style.color='var(--primary)'; }
+
+  let enviadas = 0;
+  const procesarUna = (idx) => {
+    if (idx >= pendientes.length) {
+      _actualizarIndicador();
+      renderListaCola();
+      if (estadoEl) { estadoEl.textContent = `✅ ${enviadas} foto(s) enviada(s)`; estadoEl.style.color='var(--success)'; }
+      if (enviadas > 0) mostrarToast(`✅ ${enviadas} foto(s) enviada(s) correctamente`);
+      return;
+    }
+
+    const item = pendientes[idx];
+    // Marcar como enviando
+    const cola2 = _obtenerCola();
+    const iCola = cola2.findIndex(x=>x.id===item.id);
+    if (iCola!==-1) { cola2[iCola].status='enviando'; _guardarCola(cola2); }
+    renderListaCola();
+
+    _enviarFotoDirecta(item, (res, err) => {
+      const cola3 = _obtenerCola();
+      const j = cola3.findIndex(x=>x.id===item.id);
+      if (j === -1) { procesarUna(idx+1); return; }
+
+      if (err || (res&&res.error)) {
+        cola3[j].status  = 'error';
+        cola3[j].intentos = (cola3[j].intentos||0)+1;
+        cola3[j].errorMsg = err?err.message:(res.error||'Error desconocido');
+      } else {
+        cola3[j].status = 'ok';
+        enviadas++;
+        // Actualizar galería si el local está abierto
+        const nro = item.nro;
+        if (localActual && localActual.nro === nro) {
+          if (!localActual.fotos) localActual.fotos=[];
+          localActual.fotos.push(res.url);
+          renderGaleria(localActual.fotos);
+        }
+        const li = todosLosLocales.findIndex(l=>l.nro===nro);
+        if (li!==-1) {
+          if (!todosLosLocales[li].fotos) todosLosLocales[li].fotos=[];
+          todosLosLocales[li].fotos.push(res.url);
+        }
+      }
+      _guardarCola(cola3);
+      procesarUna(idx+1);
+    });
+  };
+
+  procesarUna(0);
+}
+
+function abrirModalCola() {
+  document.getElementById('modal-cola').classList.add('active');
+  renderListaCola();
+}
+function cerrarModalCola(e) {
+  if (!e||e.target===e.currentTarget) document.getElementById('modal-cola').classList.remove('active');
+}
+
+function renderListaCola() {
+  const cola = _obtenerCola();
+  const el   = document.getElementById('cola-lista');
+  if (!el) return;
+  const items = cola.filter(i=>i.status!=='ok');
+  if (!items.length) {
+    el.innerHTML='<p style="color:var(--text-muted);font-size:13px;padding:8px 0">No hay fotos pendientes ✅</p>';
+    return;
+  }
+  el.innerHTML = items.map(i => {
+    const clsSt = i.status==='enviando'?'cola-status-enviando':i.status==='error'?'cola-status-error':'cola-status-pendiente';
+    const txtSt = i.status==='enviando'?'⏳ Enviando...':i.status==='error'?`❌ Error (intento ${i.intentos})`:'🕐 Pendiente';
+    const fecha = new Date(i.timestamp).toLocaleString('es-VE',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `
+      <div class="cola-item">
+        <img class="cola-item-thumb" src="data:image/jpeg;base64,${i.base64.substring(0,100)}..." onerror="this.style.display='none'">
+        <div class="cola-item-info">
+          <div class="cola-item-nombre">${i.nombreDesc||i.fileName}</div>
+          <div class="cola-item-sub">${i.estacion} — Local ${i.local} · ${fecha}</div>
+          ${i.errorMsg?`<div style="font-size:11px;color:var(--danger)">${i.errorMsg}</div>`:''}
+        </div>
+        <span class="cola-item-status ${clsSt}">${txtSt}</span>
+        <button onclick="eliminarDeCola('${i.id}')" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text-muted);padding:4px;" title="Eliminar">✕</button>
+      </div>`;
+  }).join('');
+}
+
+function eliminarDeCola(id) {
+  const cola = _obtenerCola().filter(i=>i.id!==id);
+  _guardarCola(cola);
+  _actualizarIndicador();
+  renderListaCola();
+}
+
+function vaciarCola() {
+  if (!confirm('¿Eliminar todas las fotos pendientes?')) return;
+  _guardarCola([]);
+  _actualizarIndicador();
+  renderListaCola();
+}
+
+function mostrarToast(msg) {
+  let t = document.getElementById('toast-msg');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast-msg';
+    t.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1f2124;color:white;padding:10px 20px;border-radius:20px;font-size:13px;z-index:9999;max-width:90%;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.display='block';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>{ t.style.display='none'; }, 3500);
 }
 
 // ============================================================
@@ -1608,4 +1800,14 @@ window.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('login-email').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('login-password').focus(); });
   document.getElementById('login-password').addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+
+  // Cola offline: actualizar indicador al cargar y escuchar cambios de conexión
+  _actualizarIndicador();
+  window.addEventListener('online', () => {
+    mostrarToast('📶 Conexión recuperada — enviando fotos pendientes...');
+    setTimeout(() => procesarColaFotos(false), 1500);
+  });
+  window.addEventListener('offline', () => {
+    mostrarToast('📵 Sin conexión — las fotos se guardarán para enviar después');
+  });
 });

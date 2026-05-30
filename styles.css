@@ -567,6 +567,34 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color:
 .pago-fechas { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
 .pago-registro { font-size: 11px; color: var(--accent); margin-top: 2px; }
 
+/* ===================== COLA DE FOTOS ===================== */
+.btn-cola-fotos {
+  background: #f59e0b; color: white; border: none;
+  padding: 5px 12px; border-radius: 20px; cursor: pointer;
+  font-size: 12px; font-weight: 700; animation: pulse-cola 2s infinite;
+  white-space: nowrap;
+}
+.btn-cola-fotos:hover { background: #d97706; }
+@keyframes pulse-cola {
+  0%,100% { opacity:1; } 50% { opacity:0.7; }
+}
+.cola-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; border-radius: 8px; margin-bottom: 8px;
+  border: 1px solid var(--border); background: var(--bg); font-size: 13px;
+}
+.cola-item-thumb {
+  width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex-shrink: 0;
+}
+.cola-item-info { flex: 1; min-width: 0; }
+.cola-item-nombre { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cola-item-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+.cola-item-status { flex-shrink: 0; font-size: 11px; font-weight: 600; }
+.cola-status-pendiente { color: var(--warning); }
+.cola-status-enviando  { color: var(--primary); }
+.cola-status-error     { color: var(--danger); }
+.cola-status-ok        { color: var(--success); }
+
 /* ===================== FINANZAS ===================== */
 .fin-seccion-titulo {
   font-size: 15px; font-weight: 700; color: var(--text);
