@@ -232,7 +232,17 @@
           <div class="page-title">Directorio de Inquilinos</div>
           <div class="page-subtitle">Contactos y locales asignados</div>
         </div>
-        <input type="text" id="filtro-directorio" placeholder="🔍 Buscar inquilino..." oninput="filtrarDirectorio()" style="padding:8px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;min-width:200px;">
+      </div>
+      <div class="filtros-bar">
+        <input type="text" id="filtro-directorio" placeholder="🔍 Buscar inquilino o local..." oninput="filtrarDirectorio()">
+        <select id="dir-filtro-linea" onchange="filtrarDirectorio()">
+          <option value="">Todas las líneas</option>
+          <option value="1">Línea 1</option><option value="2">Línea 2</option>
+          <option value="3">Línea 3</option><option value="4">Línea 4</option>
+        </select>
+        <select id="dir-filtro-estacion" onchange="filtrarDirectorio()">
+          <option value="">Todas las estaciones</option>
+        </select>
       </div>
       <div class="directorio-lista" id="directorio-lista">
         <div style="text-align:center;padding:40px;color:var(--text-muted);">Cargando directorio...</div>
@@ -246,6 +256,17 @@
           <div class="page-title">Contratos de Renta</div>
           <div class="page-subtitle">Vencimientos y estado de contratos</div>
         </div>
+      </div>
+      <div class="filtros-bar">
+        <input type="text" id="con-filtro-buscar" placeholder="🔍 Buscar arrendatario o local..." oninput="renderContratos(filtroContratosActual)">
+        <select id="con-filtro-linea" onchange="renderContratos(filtroContratosActual)">
+          <option value="">Todas las líneas</option>
+          <option value="1">Línea 1</option><option value="2">Línea 2</option>
+          <option value="3">Línea 3</option><option value="4">Línea 4</option>
+        </select>
+        <select id="con-filtro-estacion" onchange="renderContratos(filtroContratosActual)">
+          <option value="">Todas las estaciones</option>
+        </select>
       </div>
       <div class="contratos-section">
         <div class="contratos-filtro">
@@ -268,6 +289,17 @@
           <div class="page-subtitle">Comprobantes registrados</div>
         </div>
         <button class="btn-primary" onclick="abrirModalPago()">+ Registrar Pago</button>
+      </div>
+      <div class="filtros-bar">
+        <input type="text" id="pag-filtro-buscar" placeholder="🔍 Buscar estación o local..." oninput="cargarPagos()">
+        <select id="pag-filtro-linea" onchange="cargarPagos()">
+          <option value="">Todas las líneas</option>
+          <option value="1">Línea 1</option><option value="2">Línea 2</option>
+          <option value="3">Línea 3</option><option value="4">Línea 4</option>
+        </select>
+        <select id="pag-filtro-estacion" onchange="cargarPagos()">
+          <option value="">Todas las estaciones</option>
+        </select>
       </div>
       <div class="pagos-section" id="pagos-lista">
         <div style="text-align:center;padding:40px;color:var(--text-muted);">Cargando pagos...</div>
@@ -321,12 +353,26 @@
       </div>
 
       <!-- Filtros de línea -->
-      <div style="padding:0 20px 10px;display:flex;gap:6px;flex-wrap:wrap;">
-        <button class="btn-filtro active" onclick="filtrarCompLinea('todas')" id="cfl-todas">Todas</button>
-        <button class="btn-filtro" onclick="filtrarCompLinea('1')" id="cfl-1">Línea 1</button>
-        <button class="btn-filtro" onclick="filtrarCompLinea('2')" id="cfl-2">Línea 2</button>
-        <button class="btn-filtro" onclick="filtrarCompLinea('3')" id="cfl-3">Línea 3</button>
-        <button class="btn-filtro" onclick="filtrarCompLinea('4')" id="cfl-4">Línea 4</button>
+      <div class="filtros-bar">
+        <input type="text" id="filtro-comparativa" placeholder="🔍 Buscar estación o local..." oninput="filtrarComparativa()">
+        <select id="comp-filtro-linea" onchange="filtrarComparativa()">
+          <option value="">Todas las líneas</option>
+          <option value="1">Línea 1</option><option value="2">Línea 2</option>
+          <option value="3">Línea 3</option><option value="4">Línea 4</option>
+        </select>
+        <select id="comp-filtro-estacion" onchange="filtrarComparativa()">
+          <option value="">Todas las estaciones</option>
+        </select>
+        <select id="comp-filtro-status" onchange="filtrarComparativa()">
+          <option value="">Todos los status</option>
+          <option value="ARRENDADO">Arrendado</option>
+          <option value="DISPONIBLE">Disponible</option>
+          <option value="EN RECUPERACIÓN">En Recuperación</option>
+          <option value="ASIGNADO">Asignado</option>
+          <option value="COMODATO">Comodato</option>
+          <option value="EN ANÁLISIS">En Análisis</option>
+          <option value="DEPÓSITO">Depósito</option>
+        </select>
       </div>
 
       <!-- Tabla -->
@@ -432,6 +478,22 @@
     <!-- PANEL PRECIOS (solo admin) -->
     <div id="panel-precios" class="panel-precios" style="display:none;">
       <p class="panel-precios-title">Editar Precios</p>
+
+      <!-- Selector monto actual vs 2026 -->
+      <div class="monto-selector" id="monto-selector">
+        <p style="font-size:11px;color:var(--text-muted);margin-bottom:8px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Seleccionar base del monto</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+          <button class="btn-monto-opcion active" id="btn-monto-actual" onclick="seleccionarMonto('actual')">
+            <span style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">MONTO ACTUAL</span>
+            <span id="lbl-monto-actual" style="font-size:15px;font-weight:700;">—</span>
+          </button>
+          <button class="btn-monto-opcion" id="btn-monto-2026" onclick="seleccionarMonto('2026')">
+            <span style="font-size:10px;color:var(--text-muted);display:block;margin-bottom:2px;">MONTO 2026</span>
+            <span id="lbl-monto-2026" style="font-size:15px;font-weight:700;color:var(--success);">—</span>
+          </button>
+        </div>
+      </div>
+
       <div class="form-grid">
         <div class="form-group">
           <label>Monto mensual $</label>

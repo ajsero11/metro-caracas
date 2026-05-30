@@ -140,12 +140,17 @@ function llenarFiltroEstaciones() {
   apiGet({ action: 'getLocales' }).then(res => {
     if (!res.locales) return;
     const estaciones = [...new Set(res.locales.map(l => l.estacion))].sort();
-    const sel = document.getElementById('filtro-estacion');
-    while (sel.options.length > 1) sel.remove(1);
-    estaciones.forEach(e => {
-      const opt = document.createElement('option');
-      opt.value = e; opt.textContent = e;
-      sel.appendChild(opt);
+    // Llenar todos los selects de estación en todos los tabs
+    const ids = ['filtro-estacion','dir-filtro-estacion','con-filtro-estacion','pag-filtro-estacion','comp-filtro-estacion'];
+    ids.forEach(id => {
+      const sel = document.getElementById(id);
+      if (!sel) return;
+      while (sel.options.length > 1) sel.remove(1);
+      estaciones.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e; opt.textContent = e;
+        sel.appendChild(opt);
+      });
     });
   });
 }
@@ -588,6 +593,17 @@ function abrirDetalle(nro) {
     panelPrecios.style.display = 'block';
     document.getElementById('edit-monto').value        = monto||'';
     document.getElementById('edit-contingencia').value = contingencia||'';
+
+    // Mostrar opciones de monto actual vs 2026
+    const total2026 = Number(l.total_2026)||0;
+    const lblActual = document.getElementById('lbl-monto-actual');
+    const lblNuevo  = document.getElementById('lbl-monto-2026');
+    const selectorDiv = document.getElementById('monto-selector');
+    if (lblActual) lblActual.textContent = monto ? '$ '+monto.toLocaleString('es-VE',{minimumFractionDigits:2}) : '—';
+    if (lblNuevo)  lblNuevo.textContent  = total2026 ? '$ '+total2026.toLocaleString('es-VE',{minimumFractionDigits:2}) : 'Sin datos';
+    if (selectorDiv) selectorDiv.style.display = total2026 ? 'block' : 'none';
+    // Reset selección a "actual"
+    seleccionarMonto('actual', false);
     calcularPrecioFinal();
   } else {
     panelPrecios.style.display = 'none';
@@ -698,6 +714,21 @@ function guardarObservaciones() {
 // ============================================================
 // PRECIOS (solo admin)
 // ============================================================
+function seleccionarMonto(tipo, actualizarInput=true) {
+  const btnActual = document.getElementById('btn-monto-actual');
+  const btn2026   = document.getElementById('btn-monto-2026');
+  if (btnActual) btnActual.classList.toggle('active', tipo==='actual');
+  if (btn2026)   btn2026.classList.toggle('active', tipo==='2026');
+
+  if (actualizarInput && localActual) {
+    const valor = tipo==='2026'
+      ? (Number(localActual.total_2026)||0)
+      : (Number(localActual.monto)||0);
+    document.getElementById('edit-monto').value = valor||'';
+    calcularPrecioFinal();
+  }
+}
+
 function calcularPrecioFinal() {
   const monto        = parseFloat(document.getElementById('edit-monto').value)||0;
   const contingencia = parseFloat(document.getElementById('edit-contingencia').value)||0;
@@ -806,6 +837,8 @@ function cargarDirectorio() {
     });
 }
 
+function getValSel(id) { const el=document.getElementById(id); return el?el.value:''; }
+
 function renderDirectorio(items) {
   const el = document.getElementById('directorio-lista');
   if (!items.length) { el.innerHTML='<p style="color:var(--text-muted);padding:20px">No hay inquilinos registrados.</p>'; return; }
@@ -835,8 +868,17 @@ function renderDirectorio(items) {
 }
 
 function filtrarDirectorio() {
-  const q = document.getElementById('filtro-directorio').value.toLowerCase();
-  const filtrados = directorioData.filter(i => i.arrendatario.toLowerCase().includes(q));
+  const q       = (getValSel('filtro-directorio')||'').toLowerCase();
+  const linea   = getValSel('dir-filtro-linea');
+  const estacion= getValSel('dir-filtro-estacion').toUpperCase();
+
+  const filtrados = directorioData.filter(inq => {
+    if (q && !inq.arrendatario.toLowerCase().includes(q) &&
+        !inq.locales.some(l => l.local.toLowerCase().includes(q))) return false;
+    if (linea && !inq.locales.some(l => String(l.linea)===linea)) return false;
+    if (estacion && !inq.locales.some(l => l.estacion.toUpperCase()===estacion)) return false;
+    return true;
+  });
   renderDirectorio(filtrados);
 }
 
@@ -866,7 +908,14 @@ function renderContratos(filtro) {
   });
 
   const hoy = new Date(); hoy.setHours(0,0,0,0);
-  const locales = todosLosLocales.filter(l => l.fin && l.status==='ARRENDADO');
+  const buscar   = (getValSel('con-filtro-buscar')||'').toUpperCase();
+  const linea    = getValSel('con-filtro-linea');
+  const estacion = getValSel('con-filtro-estacion').toUpperCase();
+
+  let locales = todosLosLocales.filter(l => l.fin && l.status==='ARRENDADO');
+  if (linea)    locales = locales.filter(l => String(l.linea)===linea);
+  if (estacion) locales = locales.filter(l => l.estacion.toUpperCase()===estacion);
+  if (buscar)   locales = locales.filter(l => (l.arrendatario+' '+l.local+' '+l.estacion).toUpperCase().includes(buscar));
 
   const items = locales.map(l => {
     const fin  = fechaObj(l.fin);
@@ -921,8 +970,22 @@ function cargarPagos() {
 }
 
 function renderPagos(pagos) {
+  const buscar   = (getValSel('pag-filtro-buscar')||'').toUpperCase();
+  const linea    = getValSel('pag-filtro-linea');
+  const estacion = getValSel('pag-filtro-estacion').toUpperCase();
+
+  if (linea || estacion || buscar) {
+    pagos = pagos.filter(p => {
+      const loc = todosLosLocales.find(l => String(l.nro)===String(p.nro_local));
+      if (linea    && (!loc || String(loc.linea)!==linea)) return false;
+      if (estacion && p.estacion.toUpperCase()!==estacion) return false;
+      if (buscar   && !(p.estacion+' '+p.local).toUpperCase().includes(buscar)) return false;
+      return true;
+    });
+  }
+
   const el = document.getElementById('pagos-lista');
-  if(!pagos.length){ el.innerHTML='<p style="color:var(--text-muted);padding:20px">No hay pagos registrados aún.</p>'; return; }
+  if(!pagos.length){ el.innerHTML='<p style="color:var(--text-muted);padding:20px">No hay pagos registrados.</p>'; return; }
 
   el.innerHTML = pagos.map(p=>`
     <div class="pago-card">
@@ -1041,13 +1104,15 @@ function renderChartComparativa(locales) {
 function renderTablaComparativa(localesFull) {
   let locales = localesFull.filter(l => Number(l.total_2026) > 0 || Number(l.monto) > 0);
 
-  if (_compLineaFiltro !== 'todas') {
-    locales = locales.filter(l => String(l.linea) === _compLineaFiltro);
-  }
-  if (_compBusqueda) {
-    const q = _compBusqueda.toUpperCase();
-    locales = locales.filter(l => (l.estacion+' '+l.local+' '+(l.arrendatario||'')).toUpperCase().includes(q));
-  }
+  const buscar   = (getValSel('filtro-comparativa')||'').toUpperCase();
+  const linea    = getValSel('comp-filtro-linea');
+  const estacion = getValSel('comp-filtro-estacion').toUpperCase();
+  const status   = getValSel('comp-filtro-status').toUpperCase();
+
+  if (linea)    locales = locales.filter(l => String(l.linea)===linea);
+  if (estacion) locales = locales.filter(l => l.estacion.toUpperCase()===estacion);
+  if (status)   locales = locales.filter(l => l.status.toUpperCase()===status);
+  if (buscar)   locales = locales.filter(l => (l.estacion+' '+l.local+' '+(l.arrendatario||'')).toUpperCase().includes(buscar));
 
   const tbody = document.getElementById('comp-tbody');
   if (!locales.length) {
@@ -1079,16 +1144,6 @@ function renderTablaComparativa(localesFull) {
 }
 
 function filtrarComparativa() {
-  _compBusqueda = document.getElementById('filtro-comparativa').value;
-  const locales = todosLosLocales.filter(l => Number(l.total_2026)>0 || Number(l.monto)>0);
-  renderTablaComparativa(locales);
-}
-
-function filtrarCompLinea(linea) {
-  _compLineaFiltro = linea;
-  ['todas','1','2','3','4'].forEach(l => {
-    document.getElementById('cfl-'+l).classList.toggle('active', l===linea);
-  });
   const locales = todosLosLocales.filter(l => Number(l.total_2026)>0 || Number(l.monto)>0);
   renderTablaComparativa(locales);
 }

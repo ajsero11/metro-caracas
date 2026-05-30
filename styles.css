@@ -596,6 +596,16 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color:
 .chart-modal-table th { text-align: left; padding: 8px 10px; background: var(--bg); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
 .chart-modal-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
 
+/* ===================== SELECTOR MONTO ===================== */
+.btn-monto-opcion {
+  flex: 1; min-width: 130px; padding: 10px 14px;
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  background: white; cursor: pointer; text-align: left;
+  transition: all var(--transition);
+}
+.btn-monto-opcion:hover { border-color: var(--primary); }
+.btn-monto-opcion.active { border-color: var(--primary); background: var(--primary-light); }
+
 /* ===================== PANEL PRECIOS ===================== */
 .panel-precios {
   background: var(--bg); border-radius: var(--radius); padding: 16px; margin-top: 12px;
