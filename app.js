@@ -1130,7 +1130,7 @@ function renderTablaComparativa(localesFull) {
     const fmtD = n => n ? '$ '+Math.abs(n).toLocaleString('es-VE',{minimumFractionDigits:2}) : '—';
     const signo = diff > 0 ? '▲ ' : diff < 0 ? '▼ ' : '';
 
-    return `<tr>
+    return `<tr onclick="abrirDetalle(${l.nro})" style="cursor:pointer;">
       <td>${l.nro}</td>
       <td>${l.estacion}</td>
       <td>${l.local}</td>
