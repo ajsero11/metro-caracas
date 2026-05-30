@@ -76,7 +76,8 @@ function mostrarApp() {
     el.style.display = esAdmin ? (el.tagName === 'DIV' ? 'flex' : 'inline-block') : 'none';
   });
   // nav-items son divs flex
-  ['nav-directorio','nav-contratos','nav-pagos','nav-comparativa','bnav-directorio','bnav-contratos','bnav-pagos','bnav-comparativa'].forEach(id => {
+  ['nav-directorio','nav-contratos','nav-pagos','nav-comparativa','nav-finanzas',
+   'bnav-directorio','bnav-contratos','bnav-pagos','bnav-comparativa','bnav-finanzas'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = esAdmin ? 'flex' : 'none';
   });
@@ -94,7 +95,7 @@ function mostrarApp() {
 // ============================================================
 // NAVEGACIÓN POR PESTAÑAS
 // ============================================================
-const TABS = ['resumen','catalogo','directorio','contratos','pagos','comparativa'];
+const TABS = ['resumen','catalogo','directorio','contratos','pagos','comparativa','finanzas'];
 
 function cambiarTab(tab) {
   tabActual = tab;
@@ -112,6 +113,7 @@ function cambiarTab(tab) {
   if (tab === 'contratos')  renderContratos('todos');
   if (tab === 'pagos')      cargarPagos();
   if (tab === 'comparativa') renderComparativa();
+  if (tab === 'finanzas')   cargarFinanzas();
 }
 
 // ============================================================
@@ -432,6 +434,10 @@ function abrirChartModal(tipo) {
       options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
     });
     tabla.innerHTML = tablaHTML(['Línea','Ingresos $'], Object.entries(ing).map(([k,v])=>['Línea '+k,'$ '+v.toLocaleString('es-VE',{minimumFractionDigits:2})]));
+  }
+
+  if (['fin-ingresos-mes','fin-ingresos-linea','fin-deuda-linea','fin-deuda-estacion'].includes(tipo)) {
+    _abrirChartModalFinanzas(tipo); return;
   }
 
   if (tipo === 'comparativa') {
@@ -999,16 +1005,25 @@ function renderPagos(pagos) {
 }
 
 function abrirModalPago() {
-  // Llenar select de locales
   const sel = document.getElementById('pago-local-select');
   sel.innerHTML = todosLosLocales.filter(l=>l.status==='ARRENDADO').map(l=>
     `<option value="${l.nro}">${l.local} — ${l.estacion} (${l.arrendatario||'Sin inquilino'})</option>`
   ).join('');
-  document.getElementById('pago-desde').value = '';
-  document.getElementById('pago-hasta').value = '';
+  document.getElementById('pago-desde').value      = '';
+  document.getElementById('pago-hasta').value      = '';
   document.getElementById('input-foto-pago').value = '';
-  document.getElementById('pago-msg').textContent = '';
+  document.getElementById('pago-msg').textContent  = '';
+  // Autocompletar monto con el primer local
+  _actualizarMontoPago();
+  sel.onchange = _actualizarMontoPago;
   document.getElementById('modal-pago').classList.add('active');
+}
+
+function _actualizarMontoPago() {
+  const nro   = document.getElementById('pago-local-select').value;
+  const local = todosLosLocales.find(l => String(l.nro) === String(nro));
+  const monto = local ? (Number(local.precio_final)||Number(local.monto)||0) : 0;
+  document.getElementById('pago-monto').value = monto || '';
 }
 
 function cerrarModalPago(e) { if(!e||e.target===e.currentTarget) document.getElementById('modal-pago').classList.remove('active'); }
@@ -1025,10 +1040,12 @@ function guardarPago() {
   const local = todosLosLocales.find(l=>l.nro==nro);
   msg.style.color='var(--text-muted)'; msg.textContent='Guardando...';
 
+  const monto = parseFloat(document.getElementById('pago-monto').value)||0;
+
   const enviar = (fotoUrl) => {
     apiPost({
       action:'addPago',
-      data:{ nro_local:nro, estacion:local?local.estacion:'', local:local?local.local:'', foto_url:fotoUrl||'', fecha_desde:desde, fecha_hasta:hasta },
+      data:{ nro_local:nro, estacion:local?local.estacion:'', local:local?local.local:'', foto_url:fotoUrl||'', fecha_desde:desde, fecha_hasta:hasta, monto },
       email:usuarioActual.email
     }).then(res=>{
       if(res.error){ msg.style.color='var(--danger)'; msg.textContent=res.error; return; }
@@ -1146,6 +1163,311 @@ function renderTablaComparativa(localesFull) {
 function filtrarComparativa() {
   const locales = todosLosLocales.filter(l => Number(l.total_2026)>0 || Number(l.monto)>0);
   renderTablaComparativa(locales);
+}
+
+// ============================================================
+// FINANZAS
+// ============================================================
+let _finPagosData  = [];
+let _finLineaFiltro   = '';
+let _finEstacionFiltro = '';
+
+function cargarFinanzas() {
+  // Limpiar estado
+  ['fin-total-recibido','fin-mes-recibido','fin-num-pagos','fin-promedio',
+   'fin-deuda-total','fin-locales-mora','fin-dias-mora','fin-estacion-mora'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '...';
+  });
+
+  apiGet({ action:'getPagos', email:usuarioActual.email })
+    .then(res => {
+      if (res.error) throw new Error(res.error);
+      _finPagosData = res.pagos || [];
+      // Llenar estaciones en filtro
+      const ests = [...new Set(todosLosLocales.map(l=>l.estacion))].sort();
+      const sel = document.getElementById('fin-filtro-estacion');
+      if (sel) {
+        while (sel.options.length > 1) sel.remove(1);
+        ests.forEach(e => { const o=document.createElement('option'); o.value=e; o.textContent=e; sel.appendChild(o); });
+      }
+      aplicarFiltrosFinanzas();
+    })
+    .catch(err => {
+      document.getElementById('fin-tbody-deuda').innerHTML =
+        `<tr><td colspan="7" style="color:red;padding:20px">Error: ${err.message}</td></tr>`;
+    });
+}
+
+function aplicarFiltrosFinanzas() {
+  _finLineaFiltro    = getValSel('fin-filtro-linea');
+  _finEstacionFiltro = getValSel('fin-filtro-estacion');
+  renderFinanzas();
+}
+
+function renderFinanzas() {
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const mesActual = hoy.getFullYear() + '-' + String(hoy.getMonth()+1).padStart(2,'0');
+
+  // Filtrar locales arrendados según filtros activos
+  let localesArr = todosLosLocales.filter(l => l.status === 'ARRENDADO');
+  if (_finLineaFiltro)    localesArr = localesArr.filter(l => String(l.linea) === _finLineaFiltro);
+  if (_finEstacionFiltro) localesArr = localesArr.filter(l => l.estacion === _finEstacionFiltro);
+  const nrosSet = new Set(localesArr.map(l => String(l.nro)));
+
+  // Filtrar pagos según locales seleccionados
+  const pagos = _finPagosData.filter(p => !nrosSet.size || nrosSet.has(String(p.nro_local)));
+
+  // ── INGRESOS ──
+  const totalRecibido = pagos.reduce((s,p) => s + (Number(p.monto)||0), 0);
+  const pagosMes      = pagos.filter(p => {
+    const reg = p.fecha_registro ? String(p.fecha_registro).substring(0,7) : '';
+    return reg === mesActual;
+  });
+  const mesRecibido = pagosMes.reduce((s,p) => s+(Number(p.monto)||0), 0);
+  const promedio    = pagos.length ? totalRecibido/pagos.length : 0;
+
+  const fmt = n => '$ '+n.toLocaleString('es-VE',{minimumFractionDigits:2});
+  document.getElementById('fin-total-recibido').textContent = fmt(totalRecibido);
+  document.getElementById('fin-mes-recibido').textContent   = fmt(mesRecibido);
+  document.getElementById('fin-num-pagos').textContent      = pagos.length;
+  document.getElementById('fin-promedio').textContent       = fmt(promedio);
+  document.getElementById('fin-mes-label').textContent      = new Date().toLocaleDateString('es-VE',{month:'long',year:'numeric'});
+
+  renderChartIngresosMes(pagos);
+  renderChartIngresosLinea(pagos, localesArr);
+
+  // ── DEUDA ──
+  // Para cada local arrendado, buscar último pago y ver si está en mora
+  const lastPagoPorLocal = {};
+  _finPagosData.forEach(p => {
+    const k = String(p.nro_local);
+    if (!lastPagoPorLocal[k] || p.fecha_hasta > lastPagoPorLocal[k].fecha_hasta) {
+      lastPagoPorLocal[k] = p;
+    }
+  });
+
+  const enMora = [];
+  localesArr.forEach(l => {
+    const monto = Number(l.precio_final)||Number(l.monto)||0;
+    if (!monto) return;
+    const lastPago = lastPagoPorLocal[String(l.nro)];
+    let diasMora = 0;
+
+    if (!lastPago) {
+      // Sin pagos: mora desde inicio contrato
+      const inicio = fechaObj(l.inicio);
+      if (inicio && inicio < hoy) diasMora = Math.floor((hoy - inicio)/86400000);
+      else return; // sin contrato iniciado, ignorar
+    } else {
+      const hasta = lastPago.fecha_hasta ? new Date(lastPago.fecha_hasta) : null;
+      if (!hasta || hasta >= hoy) return; // al día
+      diasMora = Math.floor((hoy - hasta)/86400000);
+    }
+
+    if (diasMora <= 0) return;
+    const meses     = Math.ceil(diasMora/30);
+    const deudaEst  = meses * monto;
+    enMora.push({ l, diasMora, meses, deudaEst, lastPago });
+  });
+
+  enMora.sort((a,b) => b.deudaEst - a.deudaEst);
+
+  const deudaTotal   = enMora.reduce((s,x) => s+x.deudaEst, 0);
+  const diasProm     = enMora.length ? Math.round(enMora.reduce((s,x)=>s+x.diasMora,0)/enMora.length) : 0;
+  const topEstacion  = enMora.length
+    ? Object.entries(enMora.reduce((m,x)=>{ m[x.l.estacion]=(m[x.l.estacion]||0)+x.deudaEst; return m; },{}))
+        .sort((a,b)=>b[1]-a[1])[0][0]
+    : '—';
+
+  document.getElementById('fin-deuda-total').textContent   = fmt(deudaTotal);
+  document.getElementById('fin-locales-mora').textContent  = enMora.length;
+  document.getElementById('fin-dias-mora').textContent     = diasProm + ' días';
+  document.getElementById('fin-estacion-mora').textContent = topEstacion;
+
+  renderChartDeudaLinea(enMora);
+  renderChartDeudaEstacion(enMora);
+  renderTablaDeuda(enMora);
+}
+
+// ── GRÁFICAS INGRESOS ──
+function renderChartIngresosMes(pagos) {
+  const meses = {};
+  pagos.forEach(p => {
+    if (!p.fecha_registro) return;
+    const key = String(p.fecha_registro).substring(0,7);
+    meses[key] = (meses[key]||0) + (Number(p.monto)||0);
+  });
+  const keys = Object.keys(meses).sort().slice(-12);
+  crearOActualizarChart('chart-fin-ingresos-mes', {
+    type:'bar',
+    data:{ labels:keys, datasets:[{ label:'Ingresos $', data:keys.map(k=>meses[k]), backgroundColor:'#16a34a', borderRadius:6 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+  });
+}
+
+function renderChartIngresosLinea(pagos, localesArr) {
+  const mapaLocal = {};
+  todosLosLocales.forEach(l => { mapaLocal[String(l.nro)] = l; });
+  const porLinea = {1:0,2:0,3:0,4:0};
+  pagos.forEach(p => {
+    const loc = mapaLocal[String(p.nro_local)];
+    if (loc && porLinea[loc.linea]!==undefined) porLinea[loc.linea] += Number(p.monto)||0;
+  });
+  crearOActualizarChart('chart-fin-ingresos-linea', {
+    type:'bar',
+    data:{ labels:['Línea 1','Línea 2','Línea 3','Línea 4'],
+      datasets:[{ label:'$ Recibido', data:Object.values(porLinea), backgroundColor:CHART_COLORS.slice(0,4), borderRadius:6 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+  });
+}
+
+// ── GRÁFICAS DEUDA ──
+function renderChartDeudaLinea(enMora) {
+  const porLinea = {1:0,2:0,3:0,4:0};
+  enMora.forEach(x => { if (porLinea[x.l.linea]!==undefined) porLinea[x.l.linea]+=x.deudaEst; });
+  crearOActualizarChart('chart-fin-deuda-linea', {
+    type:'bar',
+    data:{ labels:['Línea 1','Línea 2','Línea 3','Línea 4'],
+      datasets:[{ label:'Deuda $', data:Object.values(porLinea), backgroundColor:'#e31b23', borderRadius:6 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+  });
+}
+
+function renderChartDeudaEstacion(enMora) {
+  const porEst = {};
+  enMora.forEach(x => { porEst[x.l.estacion] = (porEst[x.l.estacion]||0)+x.deudaEst; });
+  const top = Object.entries(porEst).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  crearOActualizarChart('chart-fin-deuda-estacion', {
+    type:'bar',
+    data:{ labels:top.map(e=>e[0]), datasets:[{ label:'Deuda $', data:top.map(e=>e[1]), backgroundColor:'#fbbf24', borderRadius:6 }] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+  });
+}
+
+function renderTablaDeuda(enMora) {
+  const fmt = n => '$ '+n.toLocaleString('es-VE',{minimumFractionDigits:2});
+  const tbody = document.getElementById('fin-tbody-deuda');
+  if (!enMora.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--success);">✅ Sin locales en mora</td></tr>';
+    return;
+  }
+  tbody.innerHTML = enMora.map(({l,diasMora,meses,deudaEst,lastPago}) => {
+    const hasta = lastPago ? lastPago.fecha_hasta : '(sin pagos)';
+    const clsDias = diasMora > 90 ? 'comp-val-neg' : diasMora > 30 ? 'comp-pct-neg' : 'comp-pct-pos';
+    return `<tr onclick="abrirDetalle(${l.nro})" style="cursor:pointer;">
+      <td>${l.estacion}</td>
+      <td>${l.local}</td>
+      <td style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${l.arrendatario||'—'}</td>
+      <td>${hasta}</td>
+      <td class="${clsDias}">${diasMora}d</td>
+      <td>${meses}</td>
+      <td class="comp-val-neg">${fmt(deudaEst)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── CHART MODAL para finanzas ──
+function _abrirChartModalFinanzas(tipo) {
+  const modal  = document.getElementById('modal-chart');
+  modal.classList.add('active');
+  if (chartModalInst) { chartModalInst.destroy(); chartModalInst = null; }
+  const canvas = document.getElementById('chart-modal-canvas');
+  const title  = document.getElementById('chart-modal-title');
+  const desc   = document.getElementById('chart-modal-desc');
+  const tabla  = document.getElementById('chart-modal-tabla');
+  tabla.innerHTML = '';
+
+  const fmt = n => '$ '+n.toLocaleString('es-VE',{minimumFractionDigits:2});
+  const mapaLocal = {};
+  todosLosLocales.forEach(l => { mapaLocal[String(l.nro)] = l; });
+
+  // Filtrar pagos y mora según filtros activos
+  const nrosSet = new Set(
+    todosLosLocales.filter(l => {
+      if (l.status !== 'ARRENDADO') return false;
+      if (_finLineaFiltro    && String(l.linea) !== _finLineaFiltro)   return false;
+      if (_finEstacionFiltro && l.estacion !== _finEstacionFiltro) return false;
+      return true;
+    }).map(l => String(l.nro))
+  );
+  const pagos = _finPagosData.filter(p => !nrosSet.size || nrosSet.has(String(p.nro_local)));
+
+  if (tipo === 'fin-ingresos-mes') {
+    title.textContent = 'Ingresos Recibidos por Mes';
+    desc.textContent  = 'Suma de montos de pagos registrados agrupados por mes.';
+    const meses = {};
+    pagos.forEach(p => {
+      if (!p.fecha_registro) return;
+      const key = String(p.fecha_registro).substring(0,7);
+      meses[key] = (meses[key]||0)+(Number(p.monto)||0);
+    });
+    const keys = Object.keys(meses).sort().slice(-12);
+    chartModalInst = new Chart(canvas, {
+      type:'bar', data:{ labels:keys, datasets:[{ label:'Ingresos $', data:keys.map(k=>meses[k]), backgroundColor:'#16a34a', borderRadius:6 }] },
+      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+    });
+    tabla.innerHTML = tablaHTML(['Mes','Ingreso'],keys.map(k=>[k, fmt(meses[k])]));
+  }
+
+  if (tipo === 'fin-ingresos-linea') {
+    title.textContent = 'Ingresos por Línea';
+    desc.textContent  = 'Total recibido agrupado por línea de Metro.';
+    const porLinea = {1:0,2:0,3:0,4:0};
+    pagos.forEach(p => { const loc=mapaLocal[String(p.nro_local)]; if(loc&&porLinea[loc.linea]!==undefined) porLinea[loc.linea]+=Number(p.monto)||0; });
+    chartModalInst = new Chart(canvas, {
+      type:'bar', data:{ labels:['Línea 1','Línea 2','Línea 3','Línea 4'], datasets:[{ data:Object.values(porLinea), backgroundColor:CHART_COLORS.slice(0,4), borderRadius:6 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+    });
+    tabla.innerHTML = tablaHTML(['Línea','Recibido'], Object.entries(porLinea).map(([k,v])=>['Línea '+k, fmt(v)]));
+  }
+
+  if (tipo === 'fin-deuda-linea') {
+    title.textContent = 'Deuda por Línea de Metro';
+    desc.textContent  = 'Estimado de deuda acumulada por línea basado en días de mora.';
+    const porLinea = {1:0,2:0,3:0,4:0};
+    // Recalcular mora con filtros actuales
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const lastPP = {};
+    _finPagosData.forEach(p => { const k=String(p.nro_local); if(!lastPP[k]||p.fecha_hasta>lastPP[k].fecha_hasta) lastPP[k]=p; });
+    todosLosLocales.filter(l=>l.status==='ARRENDADO'&&(nrosSet.has(String(l.nro)))).forEach(l => {
+      const monto=Number(l.precio_final)||Number(l.monto)||0; if(!monto) return;
+      const lp=lastPP[String(l.nro)];
+      let dias=0;
+      if (!lp) { const ini=fechaObj(l.inicio); if(ini&&ini<hoy) dias=Math.floor((hoy-ini)/86400000); else return; }
+      else { const h=new Date(lp.fecha_hasta); if(h>=hoy) return; dias=Math.floor((hoy-h)/86400000); }
+      if(dias<=0) return;
+      if(porLinea[l.linea]!==undefined) porLinea[l.linea]+=Math.ceil(dias/30)*monto;
+    });
+    chartModalInst = new Chart(canvas, {
+      type:'bar', data:{ labels:['Línea 1','Línea 2','Línea 3','Línea 4'], datasets:[{ data:Object.values(porLinea), backgroundColor:'#e31b23', borderRadius:6 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+    });
+    tabla.innerHTML = tablaHTML(['Línea','Deuda estimada'], Object.entries(porLinea).map(([k,v])=>['Línea '+k, fmt(v)]));
+  }
+
+  if (tipo === 'fin-deuda-estacion') {
+    title.textContent = 'Deuda por Estación';
+    desc.textContent  = 'Top estaciones con mayor deuda estimada.';
+    const porEst = {};
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    const lastPP = {};
+    _finPagosData.forEach(p => { const k=String(p.nro_local); if(!lastPP[k]||p.fecha_hasta>lastPP[k].fecha_hasta) lastPP[k]=p; });
+    todosLosLocales.filter(l=>l.status==='ARRENDADO'&&nrosSet.has(String(l.nro))).forEach(l => {
+      const monto=Number(l.precio_final)||Number(l.monto)||0; if(!monto) return;
+      const lp=lastPP[String(l.nro)];
+      let dias=0;
+      if(!lp){const ini=fechaObj(l.inicio);if(ini&&ini<hoy)dias=Math.floor((hoy-ini)/86400000);else return;}
+      else{const h=new Date(lp.fecha_hasta);if(h>=hoy)return;dias=Math.floor((hoy-h)/86400000);}
+      if(dias<=0) return;
+      porEst[l.estacion]=(porEst[l.estacion]||0)+Math.ceil(dias/30)*monto;
+    });
+    const top=Object.entries(porEst).sort((a,b)=>b[1]-a[1]).slice(0,10);
+    chartModalInst = new Chart(canvas, {
+      type:'bar', data:{ labels:top.map(e=>e[0]), datasets:[{ data:top.map(e=>e[1]), backgroundColor:'#fbbf24', borderRadius:6 }] },
+      options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true}} }
+    });
+    tabla.innerHTML = tablaHTML(['Estación','Deuda estimada'], top.map(([k,v])=>[k, fmt(v)]));
+  }
 }
 
 // ============================================================

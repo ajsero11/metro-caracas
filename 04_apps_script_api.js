@@ -24,7 +24,7 @@ var COLS = {
 
 var UCOLS = { EMAIL: 1, NOMBRE: 2, ROL: 3, PASSWORD: 4 };
 
-var PCOLS = { NRO_LOCAL: 1, ESTACION: 2, LOCAL: 3, FOTO_URL: 4, FECHA_DESDE: 5, FECHA_HASTA: 6, FECHA_REGISTRO: 7 };
+var PCOLS = { NRO_LOCAL: 1, ESTACION: 2, LOCAL: 3, FOTO_URL: 4, FECHA_DESDE: 5, FECHA_HASTA: 6, FECHA_REGISTRO: 7, MONTO: 8 };
 
 // ============================================================
 // PUNTO DE ENTRADA HTTP
@@ -214,13 +214,14 @@ function getPagos(nro, email) {
     if (!data[i][0]) continue;
     if (nro && String(data[i][PCOLS.NRO_LOCAL - 1]) !== String(nro)) continue;
     pagos.push({
-      nro_local:       data[i][PCOLS.NRO_LOCAL - 1],
-      estacion:        data[i][PCOLS.ESTACION - 1],
-      local:           data[i][PCOLS.LOCAL - 1],
-      foto_url:        data[i][PCOLS.FOTO_URL - 1],
-      fecha_desde:     data[i][PCOLS.FECHA_DESDE - 1],
-      fecha_hasta:     data[i][PCOLS.FECHA_HASTA - 1],
-      fecha_registro:  data[i][PCOLS.FECHA_REGISTRO - 1]
+      nro_local:      data[i][PCOLS.NRO_LOCAL - 1],
+      estacion:       data[i][PCOLS.ESTACION - 1],
+      local:          data[i][PCOLS.LOCAL - 1],
+      foto_url:       data[i][PCOLS.FOTO_URL - 1],
+      fecha_desde:    data[i][PCOLS.FECHA_DESDE - 1],
+      fecha_hasta:    data[i][PCOLS.FECHA_HASTA - 1],
+      fecha_registro: data[i][PCOLS.FECHA_REGISTRO - 1],
+      monto:          data[i][PCOLS.MONTO - 1] || 0
     });
   }
   pagos.reverse();
@@ -242,12 +243,13 @@ function addPago(data, email) {
   var sheet = getSheet(SHEET_NAME_PAGOS);
   sheet.appendRow([
     data.nro_local,
-    data.estacion   || '',
-    data.local      || '',
+    data.estacion    || '',
+    data.local       || '',
     url,
-    data.fecha_desde  || '',
-    data.fecha_hasta  || '',
-    new Date().toISOString()
+    data.fecha_desde || '',
+    data.fecha_hasta || '',
+    new Date().toISOString(),
+    data.monto       || 0
   ]);
   return { ok: true, url: url };
 }
@@ -369,7 +371,7 @@ function getSheet(nombre) {
       sheet.appendRow(['EMAIL', 'NOMBRE', 'ROL', 'PASSWORD']);
     }
     if (nombre === SHEET_NAME_PAGOS) {
-      sheet.appendRow(['NRO_LOCAL', 'ESTACION', 'LOCAL', 'FOTO_URL', 'FECHA_DESDE', 'FECHA_HASTA', 'FECHA_REGISTRO']);
+      sheet.appendRow(['NRO_LOCAL', 'ESTACION', 'LOCAL', 'FOTO_URL', 'FECHA_DESDE', 'FECHA_HASTA', 'FECHA_REGISTRO', 'MONTO']);
     }
   }
   return sheet;
@@ -464,8 +466,14 @@ function configurarNuevasColumnas() {
     sheet.setColumnWidth(21, 130);
   }
 
-  getSheet(SHEET_NAME_PAGOS);
-  Logger.log('✅ Columnas configuradas correctamente (cols 17-21 + hoja Pagos)');
+  // Crear/actualizar hoja Pagos con columna MONTO
+  var pagosSheet = getSheet(SHEET_NAME_PAGOS);
+  var pagosHeaders = pagosSheet.getRange(1,1,1,pagosSheet.getLastColumn()).getValues()[0];
+  if (pagosHeaders.length < 8 || pagosHeaders[7] !== 'MONTO') {
+    pagosSheet.getRange(1, 8).setValue('MONTO');
+    pagosSheet.setColumnWidth(8, 100);
+  }
+  Logger.log('✅ Columnas configuradas correctamente (cols 17-21 + hoja Pagos con MONTO)');
 }
 
 function cargarPrecios2026() {

@@ -567,6 +567,13 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); color:
 .pago-fechas { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
 .pago-registro { font-size: 11px; color: var(--accent); margin-top: 2px; }
 
+/* ===================== FINANZAS ===================== */
+.fin-seccion-titulo {
+  font-size: 15px; font-weight: 700; color: var(--text);
+  padding-bottom: 12px; border-bottom: 2px solid var(--border); margin-bottom: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+
 /* ===================== COMPARATIVA TABLA ===================== */
 .comp-tabla {
   width: 100%; border-collapse: collapse; font-size: 13px; min-width: 700px;

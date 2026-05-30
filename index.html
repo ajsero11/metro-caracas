@@ -73,6 +73,9 @@
       <div class="nav-item admin-only" onclick="cambiarTab('comparativa')" id="nav-comparativa" style="display:none">
         <span class="nav-icon">📈</span><span>Comparativa 2026</span>
       </div>
+      <div class="nav-item admin-only" onclick="cambiarTab('finanzas')" id="nav-finanzas" style="display:none">
+        <span class="nav-icon">🏦</span><span>Finanzas</span>
+      </div>
     </div>
     <div class="sidebar-footer">
       <div class="sidebar-user-info">
@@ -397,6 +400,129 @@
       </div>
     </div>
 
+    <!-- ====== TAB FINANZAS ====== -->
+    <div id="tab-finanzas" class="tab-panel">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Finanzas</div>
+          <div class="page-subtitle">Ingresos recibidos y deuda por cobrar</div>
+        </div>
+        <button class="btn-primary" onclick="cargarFinanzas()">🔄 Actualizar</button>
+      </div>
+
+      <!-- Filtros -->
+      <div class="filtros-bar">
+        <select id="fin-filtro-linea" onchange="aplicarFiltrosFinanzas()">
+          <option value="">Todas las líneas</option>
+          <option value="1">Línea 1</option><option value="2">Línea 2</option>
+          <option value="3">Línea 3</option><option value="4">Línea 4</option>
+        </select>
+        <select id="fin-filtro-estacion" onchange="aplicarFiltrosFinanzas()">
+          <option value="">Todas las estaciones</option>
+        </select>
+      </div>
+
+      <!-- ── SECCIÓN INGRESOS ── -->
+      <div style="padding:16px 20px 0;">
+        <div class="fin-seccion-titulo">💵 Ingresos Recibidos</div>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);">
+        <div class="kpi-card kpi-green">
+          <div class="kpi-icon">✅</div>
+          <div class="kpi-label">Total Recibido</div>
+          <div class="kpi-value" id="fin-total-recibido">—</div>
+          <div class="kpi-sub">todos los períodos</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📅</div>
+          <div class="kpi-label">Recibido Este Mes</div>
+          <div class="kpi-value" id="fin-mes-recibido">—</div>
+          <div class="kpi-sub" id="fin-mes-label"></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">🧾</div>
+          <div class="kpi-label">Pagos Registrados</div>
+          <div class="kpi-value" id="fin-num-pagos">—</div>
+          <div class="kpi-sub">comprobantes subidos</div>
+        </div>
+        <div class="kpi-card kpi-yellow">
+          <div class="kpi-icon">📊</div>
+          <div class="kpi-label">Promedio por Pago</div>
+          <div class="kpi-value" id="fin-promedio">—</div>
+          <div class="kpi-sub">monto promedio</div>
+        </div>
+      </div>
+
+      <div class="charts-grid" style="padding:0 20px 16px;">
+        <div class="chart-card" onclick="abrirChartModal('fin-ingresos-mes')">
+          <div class="chart-title">Ingresos por Mes</div>
+          <div class="chart-wrapper"><canvas id="chart-fin-ingresos-mes"></canvas></div>
+        </div>
+        <div class="chart-card" onclick="abrirChartModal('fin-ingresos-linea')">
+          <div class="chart-title">Ingresos por Línea</div>
+          <div class="chart-wrapper"><canvas id="chart-fin-ingresos-linea"></canvas></div>
+        </div>
+      </div>
+
+      <!-- ── SECCIÓN DEUDA ── -->
+      <div style="padding:4px 20px 0;">
+        <div class="fin-seccion-titulo">⚠️ Deuda por Cobrar</div>
+      </div>
+      <div class="kpi-grid" style="grid-template-columns:repeat(2,1fr);">
+        <div class="kpi-card kpi-red">
+          <div class="kpi-icon">🔴</div>
+          <div class="kpi-label">Deuda Total</div>
+          <div class="kpi-value" id="fin-deuda-total">—</div>
+          <div class="kpi-sub">monto acumulado estimado</div>
+        </div>
+        <div class="kpi-card kpi-yellow">
+          <div class="kpi-icon">🏪</div>
+          <div class="kpi-label">Locales en Mora</div>
+          <div class="kpi-value" id="fin-locales-mora">—</div>
+          <div class="kpi-sub">con pago vencido</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📆</div>
+          <div class="kpi-label">Días Mora Promedio</div>
+          <div class="kpi-value" id="fin-dias-mora">—</div>
+          <div class="kpi-sub">sobre locales en mora</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon">📍</div>
+          <div class="kpi-label">Estación con Más Deuda</div>
+          <div class="kpi-value" id="fin-estacion-mora" style="font-size:16px;">—</div>
+        </div>
+      </div>
+
+      <div class="charts-grid" style="padding:0 20px 16px;">
+        <div class="chart-card" onclick="abrirChartModal('fin-deuda-linea')">
+          <div class="chart-title">Deuda por Línea de Metro</div>
+          <div class="chart-wrapper"><canvas id="chart-fin-deuda-linea"></canvas></div>
+        </div>
+        <div class="chart-card" onclick="abrirChartModal('fin-deuda-estacion')">
+          <div class="chart-title">Top Estaciones con Deuda</div>
+          <div class="chart-wrapper"><canvas id="chart-fin-deuda-estacion"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Tabla deuda -->
+      <div style="padding:0 20px 80px;overflow-x:auto;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:10px;color:var(--text);">Detalle de Locales en Mora</div>
+        <table class="comp-tabla" id="fin-tabla-deuda">
+          <thead>
+            <tr>
+              <th>Estación</th><th>Local</th><th>Arrendatario</th>
+              <th>Último pago hasta</th><th>Días en mora</th>
+              <th>Meses</th><th>Deuda estimada</th>
+            </tr>
+          </thead>
+          <tbody id="fin-tbody-deuda">
+            <tr><td colspan="7" style="text-align:center;padding:30px;color:var(--text-muted);">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
   </main>
 
   <!-- BOTTOM NAV (mobile) -->
@@ -418,6 +544,9 @@
     </div>
     <div class="bottom-nav-item admin-only" onclick="cambiarTab('comparativa')" id="bnav-comparativa" style="display:none">
       <span class="nav-icon">📈</span><span class="bottom-nav-label">2026</span>
+    </div>
+    <div class="bottom-nav-item admin-only" onclick="cambiarTab('finanzas')" id="bnav-finanzas" style="display:none">
+      <span class="nav-icon">🏦</span><span class="bottom-nav-label">Finanzas</span>
     </div>
   </nav>
 
@@ -671,6 +800,10 @@
       <div class="form-group">
         <label>Fecha Hasta</label>
         <input type="date" id="pago-hasta">
+      </div>
+      <div class="form-group">
+        <label>Monto cobrado $</label>
+        <input type="number" id="pago-monto" step="0.01" min="0" placeholder="Se llena automático">
       </div>
       <div class="form-group form-full">
         <label>Foto del comprobante</label>
